@@ -1,8 +1,11 @@
-# Task 0 bootstrap draft
+# Task 0 bootstrap
 
 This workflow checks isolated spikes. There is deliberately no root product
-package or application CI yet. Publication and the first workflow run require
-the owner's diff approval. No workflow has been run as part of preparing this draft.
+package or application CI yet. After owner approval, both jobs passed in
+[run40807854922](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40807854922)
+on baseline `93da51a491651b7e434b171da273c72b2ba45ed7`. New publication and CI
+expansion still require the owner's diff approval. The separate optional media
+workflow is prepared, with its first Linux run pending.
 
 The Node job installs the exact local pnpm package with `npm ci --ignore-scripts`
 inside `tools/toolchain`, then invokes `node_modules/pnpm/bin/pnpm.mjs` directly.
@@ -22,8 +25,9 @@ There is no remote DSN parameter or hosted credential input. Each SQL pass uses
 BEGIN/ROLLBACK, creates a synthetic role/schema, checks two-owner SELECT
 isolation and denied cross-owner INSERT, then rolls back; a second pass checks
 replay. These fixtures are not product migrations, hosted migration writers,
-Supabase policies, or evidence that hosted RLS works. Actual Ubuntu/PostgreSQL
-execution remains unverified until an approved workflow run.
+Supabase policies, or evidence that hosted RLS works. The approved bootstrap run
+confirmed PostgreSQL17.11 at runtime and completed both rollback/replay passes;
+it did not access hosted Supabase.
 
 The workflow uses standard Ubuntu hosted runners, read-only repository
 permissions, pinned official actions and no deployment or credential persistence.
