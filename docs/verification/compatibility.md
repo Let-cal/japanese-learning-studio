@@ -8,23 +8,24 @@ Recorded 2026-10-28; reviewed 2026-10-29. Status words distinguish observed resu
 | Candidate package versions | Registry and local fixture observed | ADR0001 pins, isolated lockfiles and strict1440-minute release-age policy; clean frozen installs passed without exceptions |
 | Chrome | Fixture interaction observed | 156.0.8078.48; Japanese text, hydration, dialog open/Escape close and returned focus passed; no captured console errors; product test not run |
 | Physical target | User-provided screenshot | iPhone 13, iOS 18.1.1; no physical-device application or photo test run |
-| Next.js / React / TypeScript build | Local Windows pass | Next16.4.3, React19.3.1 and strict TS7.0.2 fixture production build passed; Ubuntu remains unrun |
+| Next.js / React / TypeScript build | Windows and bootstrap Ubuntu pass | Next16.4.3, React19.3.1 and strict TS7.0.2 fixture production build passed; not product implementation |
 | FSRS | Local dependency contract pass | ts-fsrs5.4.2 outcome/nonmutation/chained-review APIs passed; approved product evidence/scheduling policy is not implemented |
 | Motion / Radix / styling | Local build and bounded browser pass | SSR imports, Tailwind processing and dialog hydration checked; no reduced-motion, full keyboard/axe or product UI acceptance claim |
-| HEIC normalization | Proposed candidates | ADR 0002; actual-device samples, license chain, resource limits and output verification pending |
+| HEIC normalization | Bounded Windows candidate evidence; Linux pending | Patched-codec Node/WASM candidate converts four CC0 charts and selects the burst primary correctly; CLI/API, resource, license and actual-device gates remain. See ADR 0002 and the optional media probe |
 | Encrypted recovery | Bounded Node passes; profile still candidate | Standard age/ZIP25MiB and historical249MiB round trips, negative crypto cases and stream cancellation passed; short-write fix has2tests and25MiB rerun; Safari/cloud/full restore unrun |
-| Ephemeral Ubuntu CI | Not run | Bootstrap after diff/publication approval; record actual workflow/check names after a run |
-| Disposable database fixture replay | Not run | Minimal permitted fixture schema/policy proof required; no product migration claim |
+| Ephemeral Ubuntu CI | Bootstrap observed | `node-spikes` and `postgres-fixture` succeeded on the first reviewed baseline; optional `media-linux` has not run |
+| Disposable database fixture replay | Observed | PostgreSQL17.11 disposable fixture/policy checks replayed twice with rollback; no hosted or product migration/RLS claim |
 | Hosted Google/Auth/Storage/Cron/restore | Not run | Separate hosted-service proof and approval required |
 
 ## Reproduction and bounded evidence
 
 - [Dependency fixture](../../tools/compatibility/README.md): exact pins/lock, frozen-install stop condition and direct compiler/build commands. Three dependency contract tests passed; these do not implement product policy.
 - [Recovery fixture](../../tools/recovery-probe/README.md): standard-format pipeline, security rejection cases, size/memory/abort limits and historical-versus-current results. Both source trees enforce strict1440-minute release age without exceptions.
-- [CI draft](../../tools/ci/README.md): pinned Node/pnpm, full-SHA Actions and digest-pinned ephemeral PostgreSQL fixture; not run until approved publication. The toolchain npm locked install was additionally rerun successfully with Node24.22.1 by the coordinator.
+- [Bootstrap CI](../../tools/ci/README.md): pinned Node/pnpm, full-SHA Actions and digest-pinned ephemeral PostgreSQL fixture. Both jobs passed in [run40807854922](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40807854922) on baseline `93da51a491651b7e434b171da273c72b2ba45ed7`.
+- [Media candidate probe](../../tools/media-probe/README.md): public SHA256-pinned HEIC charts, synthetic JPEG/negative cases, explicit process termination canary and observed peak-memory budget. Windows evidence does not establish Linux success, a stable production adapter or an OS memory cap.
 - [Chrome fixture screenshot](evidence/compatibility-chrome.jpg): a technical dependency fixture, not the M1 interface or a Safari test. Console log capture contained no errors in this bounded interaction.
 
-Full raw logs and synthetic large archives remain in ignored local `artifacts/`; public summaries and source are intentionally separate. The current public GitHub repository is empty; no files, workflow, branch protection or deployment has been published/configured. GitHub read-only checks show Actions enabled, default workflow token read-only, PR-review approval by Actions disabled, no branch/ruleset yet. Required checks will be selected only after a real successful bootstrap run. No workflow run is claimed.
+Full raw logs and synthetic large archives remain in ignored local `artifacts/`; public summaries and source are intentionally separate. The first reviewed baseline is published and its bootstrap CI succeeded. Main now requires PRs and the observed `node-spikes`/`postgres-fixture` checks; force push/deletion are blocked and no bypass actor is configured. Owner approval remains a separately recorded process gate. No application deployment is claimed. The optional media workflow is a proposal pending approved publication and an actual Linux run; its check is not added to main protection.
 
 ## Required evidence before closing Task 0
 

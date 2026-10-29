@@ -1,0 +1,49 @@
+name: Task 0 media Linux
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task0-media-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  media-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Install pinned local toolchain
+        working-directory: tools/toolchain
+        run: npm ci --ignore-scripts
+      - name: Frozen media dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs --dir tools/media-probe install --frozen-lockfile --ignore-scripts
+      - name: Prepare public and synthetic fixtures
+        working-directory: tools/media-probe
+        run: node prepare-fixtures.mjs
+      - name: Bounded media matrix and exact current-run assertions
+        working-directory: tools/media-probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          node run.mjs | tee artifacts/run-summary.json
+          RESULT_FILE="$(node -p "JSON.parse(require('node:fs').readFileSync('artifacts/run-summary.json','utf8')).resultFile")"
+          node verify-results.mjs "$RESULT_FILE"
+          node deadline-canary.mjs
+      - name: Dependency advisories
+        shell: bash
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs --dir tools/media-probe audit

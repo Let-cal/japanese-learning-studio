@@ -1,0 +1,13 @@
+{
+  "license": {
+    "url": "https://heic.fyi/samples/LICENSE.txt",
+    "sha256": "3f5569520b11c2779743c4fda8cc8e79ca84b36068d933f853618e34c6c672d3",
+    "spdx": "CC0-1.0"
+  },
+  "fixtures": [
+    {"name":"basic-8bit-srgb.heic","url":"https://heic.fyi/samples/basic-8bit-srgb.heic","sha256":"3fe7d32e5568f8bfd6b5d3290e61ac9b964d08464d388fa064f69cddddfee82c","width":1600,"height":1200},
+    {"name":"grid-12mp-512px-tiles.heic","url":"https://heic.fyi/samples/grid-12mp-512px-tiles.heic","sha256":"ed14b6e639fc61ce19b933163579ea23f226aa2f0a78cb757753628bcee0e55e","width":4032,"height":3024},
+    {"name":"orientation-6.heic","url":"https://heic.fyi/samples/orientation-6.heic","sha256":"80b615ae433d7ec53e9aaaeee081ecd11c0d9931350da13d6ce4e2b363d12c12","width":1200,"height":800},
+    {"name":"multi-image-burst.heic","url":"https://heic.fyi/samples/multi-image-burst.heic","sha256":"a3f76e9b8552b1deca83b7196bfa637e2742894b7ff2a17deddcef24f010d813","width":1280,"height":960}
+  ]
+}

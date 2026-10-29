@@ -2,17 +2,22 @@
 
 Status: **proposed candidates; final decisions deferred**
 
-Date: 2026-10-28; bounded recovery evidence reviewed 2026-10-29
+Date: 2026-10-28; bounded media/recovery evidence reviewed 2026-10-29
 
 ## Media candidates
 
 | Candidate | Version | License consideration |
 | --- | --- | --- |
+| @ai-ecoverse/wasm-libheif | 1.23.6-8 | Selected for further compatibility evaluation only; inspected recipe reports LGPL-3.0-or-later/MIT/BSD-2-Clause; source, notices and relinking distribution review pending |
 | heic-decode | 2.1.0 | ISC wrapper; transitive libheif/LGPL obligations unresolved |
 | sharp | 0.35.5 | Apache-2.0 package; binary/transitive distribution needs review |
 | heic-to | 1.6.7 | LGPL-3.0 candidate; obligations require review |
 
 No decoder is selected for product use. Evaluate permitted fixtures including actual iPhone HEIC behavior, orientation, visible-content preservation, metadata stripping, corrupt inputs and bounded memory. Enforce ten images/batch, 12 MiB/input and 30 MP decoded image. Do not assume paid image transformations.
+
+The pinned Node/WASM candidate actually reports libheif1.23.6 and libde2651.1.3, converts four CC0 HEVC charts and correctly selects the burst's third/primary image in the local Windows experiment. Its registry signature and build attestation were verified, and runtime artifacts matched the audited package. This identifies the release origin; it does not prove publisher trust, a reproducible rebuild, final license compliance or absence of all vulnerabilities. The upstream [1.0.17 release](https://github.com/strukturag/libde265/releases/tag/v1.0.17) lists the two previously identified codec CVEs as fixed; tested1.1.3 is newer and source fix ancestry was checked.
+
+The old convenience wrapper's first-image selection is not the accepted behavior. The new candidate's current CLI adapter also remains unsuitable as a final API: it parses textual metadata and decodes all frames before choosing the primary. Pixel guards run after container parsing. A separate [optional Linux probe](../../tools/media-probe/README.md) evaluates the candidate, actual child termination and observed resource use before any product adoption. Its768MiB fixture peak budget and aggregate multi-image check are research controls, not an approved product-policy change or OS-enforced memory isolation. Linux/Vercel, actual iPhone/Safari, HEIC GPS, color fidelity and stable API/resource/security acceptance remain pending.
 
 ## Recovery candidates
 
