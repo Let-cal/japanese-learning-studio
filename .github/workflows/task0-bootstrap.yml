@@ -1,0 +1,82 @@
+name: Task 0 bootstrap
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: task0-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-spikes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Install pinned local toolchain
+        working-directory: tools/toolchain
+        run: npm ci --ignore-scripts
+      - name: Frozen spike installs (must pass before checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          PNPM="$GITHUB_WORKSPACE/tools/toolchain/node_modules/pnpm/bin/pnpm.mjs"
+          node "$PNPM" --dir tools/compatibility install --frozen-lockfile --ignore-scripts
+          node "$PNPM" --dir tools/recovery-probe install --frozen-lockfile --ignore-scripts
+      - name: Compatibility tests, type check and build
+        working-directory: tools/compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/*.test.mjs
+          node node_modules/next/dist/bin/next typegen
+          node node_modules/typescript/bin/tsc --noEmit
+          node node_modules/next/dist/bin/next build
+      - name: Bounded synthetic recovery probe
+        working-directory: tools/recovery-probe
+        run: |
+          node --test write-all.test.mjs
+          node probe.mjs 25
+      - name: Dependency advisories
+        shell: bash
+        run: |
+          set -euo pipefail
+          PNPM="$GITHUB_WORKSPACE/tools/toolchain/node_modules/pnpm/bin/pnpm.mjs"
+          node "$PNPM" --dir tools/compatibility audit
+          node "$PNPM" --dir tools/recovery-probe audit
+
+  postgres-fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17.11-bookworm@sha256:839fbb5a4942a7758dd93e18b42ea5649807491a0545b5eeeb8f0b8bb11857a5
+        env:
+          POSTGRES_DB: task0_fixture
+          POSTGRES_USER: fixture_admin
+          POSTGRES_PASSWORD: disposable_fixture_only
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixture_admin -d task0_fixture"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Create and replay disposable SQL fixture
+        shell: bash
+        run: bash tools/ci/postgres-fixture.sh

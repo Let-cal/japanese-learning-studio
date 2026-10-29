@@ -1,0 +1,33 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and generated builds
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+artifacts/
+*.tsbuildinfo
+
+# Provider links and private working evidence
+.vercel/
+.supabase/
+.superpowers/
+.task0-cache/
+.private/
+.local/
+.worktrees/
+*.recovery
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+*.log

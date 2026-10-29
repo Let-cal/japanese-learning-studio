@@ -1,0 +1,7 @@
+{
+  "name": "jls-task0-toolchain",
+  "private": true,
+  "version": "0.0.0",
+  "engines": { "node": "24.22.1" },
+  "dependencies": { "pnpm": "12.16.1" }
+}
