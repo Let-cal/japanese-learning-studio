@@ -6,10 +6,12 @@
   "packageManager": "pnpm@12.16.1",
   "engines": { "node": "24.22.1" },
   "scripts": {
+    "api:generate": "node scripts/generate-api.mjs",
+    "api:check": "node scripts/check-api.mjs",
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
-    "lint": "eslint *.mjs",
+    "lint": "eslint *.mjs scripts/*.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test"
@@ -19,9 +21,11 @@
     "motion": "14.7.1",
     "next": "16.4.3",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "13.1.0",
     "@babel/parser": "8.0.8",
     "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.64.1",
