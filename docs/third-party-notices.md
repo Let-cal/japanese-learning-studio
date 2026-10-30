@@ -1,6 +1,8 @@
 # Third-party and source-content rights
 
-Status: preliminary inventory, updated 2026-10-30. No final product dependency/license audit has passed.
+Status: preliminary inventory, updated 2026-10-31. No final product dependency/license audit has passed.
+
+The 2026-10-31 disposable Postgres proof adds development-only `pg8.23.1` and `@types/pg8.23.1`, both MIT. They are not an application runtime database adapter. Exact pins and the lockfile retain the strict release-age policy and ignored install scripts; the complete transitive distribution still requires final notice/license review before release.
 
 The MIT license covers owned application code. It does not relicense dependencies, bundled binaries, fonts, textbooks, photos, recordings or user materials. Public fixtures must be original or have documented permission compatible with publication. No textbook or private account material is included in the authorized public fixture scope.
 
