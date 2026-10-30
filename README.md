@@ -18,6 +18,7 @@ Hosting, services and AI must remain **USD 0**. Paid upgrades, provider substitu
 - [Task dependencies and retained approval gates](docs/verification/task-dependencies.md)
 - [API contract preflight](docs/api/contract-preflight.md)
 - [Planned core API contract](docs/api/openapi.yaml) and [local command/API verification](docs/verification/commands-and-api.md)
+- [Disposable Postgres command proof and pending execution](docs/verification/postgres-command-proof.md)
 - [Local foundation checks and limitations](docs/verification/foundation.md)
 
 ## Local sample workspace
