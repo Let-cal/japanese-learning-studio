@@ -14,7 +14,7 @@ Hosting, services and AI must cost USD 0. Use only explicitly authorized, legiti
 | Trusted staging | Temporarily shares development; fixture-only; controlled freeze/reset during UAT | Approved temporary arrangement; independent isolation is not claimed |
 | Production | Separate eligible second Free project near release | Reserved direction; not provisioned by this task |
 | Public demo | Isolated prepared fixtures, no private data or provider credentials | Planned; not deployed |
-| CI | Ephemeral Ubuntu and disposable database fixture reconstruction | Proposed execution, not run |
+| CI | Ephemeral Ubuntu and disposable database fixture reconstruction | Bootstrap passed on reviewed baseline and head `a56c04e`; product migrations and hosted configuration remain untested |
 
 Development reset is a controlled operation, not blanket permission to delete data or resources. A freeze/reset runbook must protect active UAT and prevent concurrent deployers. Real private learner data must not enter shared development/staging.
 

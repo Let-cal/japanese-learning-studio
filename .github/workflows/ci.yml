@@ -1,0 +1,49 @@
+name: Product foundation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-sample:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - name: Install pinned local toolchain
+        working-directory: tools/toolchain
+        run: npm ci --ignore-scripts
+      - name: Frozen product install
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs install --frozen-lockfile --ignore-scripts
+      - name: Generate route types
+        run: node node_modules/next/dist/bin/next typegen
+      - name: JavaScript config lint
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs lint
+      - name: Strict TypeScript check
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs typecheck
+      - name: Dependency boundary tests
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs test
+      - name: Production build
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs build
+      - name: Install Chromium for local fixture browser checks
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Sample browser behavior and accessibility checks
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs test:e2e
+      - name: Dependency advisories
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs audit

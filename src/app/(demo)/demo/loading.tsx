@@ -1,0 +1,1 @@
+export default function Loading() { return <section className="loading-state" role="status" aria-busy="true"><h2>Opening the sample workspace…</h2><p>The next view will be ready shortly.</p></section>; }

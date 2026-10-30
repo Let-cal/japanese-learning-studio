@@ -1,17 +1,17 @@
 # Project setup
 
-Recorded 2026-10-28; updated 2026-10-29. This is the public-safe Task 0 foundation record. Private account configuration and approval records are maintained outside this repository.
+Recorded 2026-10-28; updated 2026-10-30. This is the public-safe setup record. Private account configuration and approval records are maintained outside this repository.
 
 | Item | State |
 | --- | --- |
 | Identity | Japanese Learning Studio; public repository `Let-cal/japanese-learning-studio` |
 | Publication and CI | First reviewed baseline published; `node-spikes` and `postgres-fixture` passed on that baseline |
 | Main protection | PR and both observed bootstrap checks required, strict up-to-date policy, resolved review threads, no bypass actors; zero mandatory GitHub approvers for the selected solo-owner process |
-| Media CI | Separate optional `media-linux` candidate job prepared; first Linux result pending, not a required main check |
+| Media CI | Optional `media-linux` passed on reviewed `a56c04e`; draft PR1 remains unmerged, not a required main check |
 | Application license | MIT, copyright 2026 Let-cal; third-party and source-content rights are separate |
 | Runtime | Portable Node.js 24.22.1 selected; no global PATH change |
-| Toolchain | Candidate exact versions in ADR 0001; compatibility approval pending |
-| Product | Not implemented or deployed |
+| Toolchain | Evaluated exact UI/runtime pins retained for local Task1; media/recovery profiles remain separately gated |
+| Product | Local Task1 preparation authorized; no deployed application or complete learning-loop claim |
 | Service and AI budget | Hard USD 0 |
 | Domain | `nihongostudio.dpdns.org` registered; no deployed website claim |
 
@@ -33,4 +33,4 @@ Cloud development is approved. Development temporarily doubles as trusted stagin
 
 ## Review gates
 
-Task 0 prepares evidence and a reviewable diff. Human diff approval precedes every new commit/push and CI expansion. Owner chat approval is recorded against the reviewed PR head; GitHub does not automatically establish that conversation. Task 1 requires its prerequisite setup decisions to be closed. Hosted schema, RLS and configuration changes require owner diff approval and a selected migration method. UAT, security review and production release remain independent gates. AI review does not satisfy a second-human approval requirement.
+Human diff approval precedes every new commit/push and CI expansion. Owner chat approval is recorded against the reviewed PR head; GitHub does not automatically establish that conversation. On 2026-10-30 the owner requested continuous execution and delegated routine technical choices. Local implementation and tests are batched into reviewable results; no repeated approval of ordinary reversible choices is needed. Task-specific prerequisites apply: unrelated unresolved profiles do not block the fixture-only shell. Hosted schema, RLS and configuration changes require owner diff approval and a selected migration method. UAT, security review and production release remain independent gates. AI review does not satisfy a second-human approval requirement.
