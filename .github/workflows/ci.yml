@@ -37,8 +37,10 @@ jobs:
         run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs lint
       - name: Strict TypeScript check
         run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs typecheck
-      - name: Dependency boundary tests
+      - name: Domain and contract tests
         run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs test
+      - name: Validate core API document and freshness
+        run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs api:check
       - name: Production build
         run: node tools/toolchain/node_modules/pnpm/bin/pnpm.mjs build
       - name: Install Chromium for local fixture browser checks

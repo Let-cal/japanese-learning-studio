@@ -1,8 +1,10 @@
 # Third-party and source-content rights
 
-Status: preliminary Task 0 inventory, updated 2026-10-29. No final product dependency/license audit has passed.
+Status: preliminary inventory, updated 2026-10-30. No final product dependency/license audit has passed.
 
 The MIT license covers owned application code. It does not relicense dependencies, bundled binaries, fonts, textbooks, photos, recordings or user materials. Public fixtures must be original or have documented permission compatible with publication. No textbook or private account material is included in the authorized public fixture scope.
+
+The local core-contract follow-up adds `zod4.6.7` (MIT, runtime validation) and `@apidevtools/swagger-parser13.1.0` (MIT, development-only API document validation). Registry maturity, exact pins and lockfile installation were checked; this is an inventory update, not clearance of every transitive distribution. Their installed license texts must accompany any distribution that requires them. API validation denies external reference resolution rather than fetching schemas or local files.
 
 ## Candidates requiring attention
 
