@@ -1,11 +1,15 @@
 # Task 0 bootstrap
 
-This workflow checks isolated spikes. There is deliberately no root product
-package or application CI yet. After owner approval, both jobs passed in
+This workflow checks isolated spikes separately from product application CI.
+After owner approval, both jobs passed in
 [run40807854922](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40807854922)
 on baseline `93da51a491651b7e434b171da273c72b2ba45ed7`. New publication and CI
 expansion still require the owner's diff approval. The separate optional media
-workflow is prepared, with its first Linux run pending.
+workflow also passed on reviewed head `a56c04e` in
+[run40896636587](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40896636587).
+Both bootstrap jobs passed again on that head in
+[run40896636504](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40896636504).
+These are fixture results, not product acceptance or deployment.
 
 The Node job installs the exact local pnpm package with `npm ci --ignore-scripts`
 inside `tools/toolchain`, then invokes `node_modules/pnpm/bin/pnpm.mjs` directly.

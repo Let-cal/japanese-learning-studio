@@ -1,6 +1,6 @@
 # Task 0 media capability probe
 
-This is a bounded Node experiment for Linux/API/resource evaluation. It is not a production upload handler, application acceptance, security clearance, or deployment. The optional `Task 0 media Linux / media-linux` workflow adds a separate Ubuntu 24.04 job and leaves the existing bootstrap jobs and required-check configuration untouched. It requires an owner-reviewed diff before integration; Linux has not yet been executed in this draft.
+This is a bounded Node experiment for Linux/API/resource evaluation. It is not a production upload handler, application acceptance, security clearance, or deployment. The optional `Task 0 media Linux / media-linux` workflow adds a separate Ubuntu 24.04 job and leaves the existing bootstrap jobs and required-check configuration untouched. Its first approved Linux run passed on reviewed head `a56c04e`; integration and product adoption still require their respective reviews.
 
 ## Reproduce
 
@@ -50,4 +50,4 @@ The pinned package's [public provenance commit](https://github.com/ai-ecoverse/h
 
 The installed package declares `LGPL-3.0-or-later AND MIT AND BSD-2-Clause`; its bundled object/relink kit is not a final distribution/legal clearance. LGPL/relink duties and HEVC patent/distribution obligations need deliberate owner review. New-publisher trust, independent build/source verification and reproducibility, advisory-specific patch ancestry, Linux packaging and resource results, real iPhone/iOS variants, HEIC EXIF/GPS, HDR/P3/10-bit fidelity, upload/auth/storage, OCR, actual batch/concurrency, hard memory isolation, customer UAT and security/release approval remain open. The diff/UAT/security/release gates stay in force.
 
-Draft Windows validation on 2026-10-29: frozen install, public fixture preparation, 26 jobs/59 checks/12 JPEGs, 158 independent assertions, deadline canary and zero registry advisories passed. This is point-in-time Windows evidence; Linux remains pending. No CI, commit, push, deploy or cloud change was performed by this draft.
+Windows validation on 2026-10-29: frozen install, public fixture preparation, 26 jobs/59 checks/12 JPEGs, 158 independent assertions, deadline canary and zero registry advisories passed. Approved Linux [run40896636587](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40896636587) passed the same matrix/assertions and POSIX SIGKILL/PID-disappearance canary. The run executed the PR test-merge tree equal to reviewed head `a56c04e`; this was not a merge into main. Linux output images were not uploaded for separate visual inspection. Actual-device testing is deferred to UAT, not waived. No deployment or hosted database write is implied.

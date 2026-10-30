@@ -1,0 +1,9 @@
+'use client';
+import { PageHeading } from '@/components/ui/PageHeading';
+import { sampleWords } from '@/demo/fixtures';
+import { useSampleState } from '@/demo/sample-state';
+export function PracticeView() {
+  const { state, update } = useSampleState();
+  const item = sampleWords[state.index];
+  return <><PageHeading eyebrow="PRACTICE / A PREPARED EXAMPLE" title="Notice. Recall. Look again.">Explore a sample card at your own pace. This preview has no answer grading, session, points or learning record.</PageHeading><div className="practice-layout"><section className="panel practice-card" aria-labelledby="sample-word"><div className="section-heading"><span className="pill">SAMPLE CARD {state.index + 1} / 4</span><span className="small muted">Meaning preview</span></div><h2 id="sample-word" lang="ja" className="prompt-word">{item.word}</h2><p lang="ja" className="reading">{item.kana}</p><p lang="ja" className="context-sentence">{item.context}</p>{state.revealed ? <div className="sample-answer" role="status"><h3 lang="vi">{item.meaning}</h3><p lang="vi">{item.translation}</p><span className="pill">Prepared AI example · No live call</span><p lang="vi">{item.note}</p></div> : <button className="primary" onClick={() => update({ ...state, revealed: true })}>Show sample meaning</button>}<div className="card-footer"><p className="small muted">An example reveal is not evidence of recall.</p><button onClick={() => update({ index: (state.index + 1) % sampleWords.length, revealed: false })}>Next sample word →</button></div></section><aside className="scope-note"><p className="eyebrow">YOUR EXACT SAMPLE SCOPE</p><h2>4 words. No extras.</h2><p>The preview uses only the four words in the sample wordbook.</p><ul>{sampleWords.map(word => <li key={word.id} lang="ja">{word.word}<span>{word.kana}</span></li>)}</ul><p className="small muted">Full practice setup, tests and guided repair are available later.</p></aside></div></>;
+}

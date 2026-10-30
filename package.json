@@ -1,0 +1,37 @@
+{
+  "name": "japanese-learning-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": { "node": "24.22.1" },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "lint": "eslint *.mjs",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.3.1",
+    "motion": "14.7.1",
+    "next": "16.4.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@babel/parser": "8.0.8",
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "10.13.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

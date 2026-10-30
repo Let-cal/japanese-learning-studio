@@ -1,6 +1,6 @@
 # Compatibility record
 
-Recorded 2026-10-28; reviewed 2026-10-29. Status words distinguish observed results, user-provided information, proposals and checks not run. This record does not certify compatibility or readiness.
+Recorded 2026-10-28; evidence reconciled 2026-10-30. Status words distinguish observed results, user-provided information, proposals and checks not run. This record does not certify compatibility or readiness.
 
 | Check | Evidence state | Result / next gate |
 | --- | --- | --- |
@@ -11,9 +11,9 @@ Recorded 2026-10-28; reviewed 2026-10-29. Status words distinguish observed resu
 | Next.js / React / TypeScript build | Windows and bootstrap Ubuntu pass | Next16.4.3, React19.3.1 and strict TS7.0.2 fixture production build passed; not product implementation |
 | FSRS | Local dependency contract pass | ts-fsrs5.4.2 outcome/nonmutation/chained-review APIs passed; approved product evidence/scheduling policy is not implemented |
 | Motion / Radix / styling | Local build and bounded browser pass | SSR imports, Tailwind processing and dialog hydration checked; no reduced-motion, full keyboard/axe or product UI acceptance claim |
-| HEIC normalization | Bounded Windows candidate evidence; Linux pending | Patched-codec Node/WASM candidate converts four CC0 charts and selects the burst primary correctly; CLI/API, resource, license and actual-device gates remain. See ADR 0002 and the optional media probe |
+| HEIC normalization | Bounded Windows and Ubuntu candidate passes | Four CC0 charts, burst-primary selection, JPEG metadata/orientation and deadline canary passed; 158 assertions on reviewed head `a56c04e`. CLI/API, resource, license and actual-device gates remain. See ADR 0002 and the optional media probe |
 | Encrypted recovery | Bounded Node passes; profile still candidate | Standard age/ZIP25MiB and historical249MiB round trips, negative crypto cases and stream cancellation passed; short-write fix has2tests and25MiB rerun; Safari/cloud/full restore unrun |
-| Ephemeral Ubuntu CI | Bootstrap observed | `node-spikes` and `postgres-fixture` succeeded on the first reviewed baseline; optional `media-linux` has not run |
+| Ephemeral Ubuntu CI | Bootstrap and optional media observed | `node-spikes`, `postgres-fixture` and optional `media-linux` succeeded on reviewed head `a56c04e`; these are fixture checks, not product acceptance |
 | Disposable database fixture replay | Observed | PostgreSQL17.11 disposable fixture/policy checks replayed twice with rollback; no hosted or product migration/RLS claim |
 | Hosted Google/Auth/Storage/Cron/restore | Not run | Separate hosted-service proof and approval required |
 
@@ -22,10 +22,14 @@ Recorded 2026-10-28; reviewed 2026-10-29. Status words distinguish observed resu
 - [Dependency fixture](../../tools/compatibility/README.md): exact pins/lock, frozen-install stop condition and direct compiler/build commands. Three dependency contract tests passed; these do not implement product policy.
 - [Recovery fixture](../../tools/recovery-probe/README.md): standard-format pipeline, security rejection cases, size/memory/abort limits and historical-versus-current results. Both source trees enforce strict1440-minute release age without exceptions.
 - [Bootstrap CI](../../tools/ci/README.md): pinned Node/pnpm, full-SHA Actions and digest-pinned ephemeral PostgreSQL fixture. Both jobs passed in [run40807854922](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40807854922) on baseline `93da51a491651b7e434b171da273c72b2ba45ed7`.
-- [Media candidate probe](../../tools/media-probe/README.md): public SHA256-pinned HEIC charts, synthetic JPEG/negative cases, explicit process termination canary and observed peak-memory budget. Windows evidence does not establish Linux success, a stable production adapter or an OS memory cap.
+- [Media candidate probe](../../tools/media-probe/README.md): public SHA256-pinned HEIC charts, synthetic JPEG/negative cases, explicit process termination canary and observed peak-memory budget. Linux [run40896636587](https://github.com/Let-cal/japanese-learning-studio/actions/runs/40896636587) passed on reviewed head `a56c04e`; this does not establish a stable production adapter, an OS memory cap or physical-device behavior.
 - [Chrome fixture screenshot](evidence/compatibility-chrome.jpg): a technical dependency fixture, not the M1 interface or a Safari test. Console log capture contained no errors in this bounded interaction.
 
-Full raw logs and synthetic large archives remain in ignored local `artifacts/`; public summaries and source are intentionally separate. The first reviewed baseline is published and its bootstrap CI succeeded. Main now requires PRs and the observed `node-spikes`/`postgres-fixture` checks; force push/deletion are blocked and no bypass actor is configured. Owner approval remains a separately recorded process gate. No application deployment is claimed. The optional media workflow is a proposal pending approved publication and an actual Linux run; its check is not added to main protection.
+Full raw logs and synthetic large archives remain in ignored local `artifacts/`; public summaries and source are intentionally separate. The first reviewed baseline is published and its bootstrap CI succeeded. Main now requires PRs and the observed `node-spikes`/`postgres-fixture` checks; force push/deletion are blocked and no bypass actor is configured. Owner approval remains a separately recorded process gate. No application deployment is claimed. Draft [PR1](https://github.com/Let-cal/japanese-learning-studio/pull/1) published the approved media snapshot; all three checks passed, while `media-linux` remains optional. Main has not merged that PR.
+
+## Dependency-specific progress
+
+The owner authorized continuous local implementation on 2026-10-30 and delegated routine reversible choices. Task 1 can use the evaluated runtime/UI pins without waiting for unrelated media, recovery or hosted-service gates. Original iPhone-file collection is deferred to device UAT; AC02/43 still require actual capture/import behavior. See the [task dependency map](task-dependencies.md). Public fixtures and browser emulation do not close physical-device acceptance.
 
 ## Required evidence before closing Task 0
 
