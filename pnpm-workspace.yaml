@@ -1,2 +1,5 @@
 minimumReleaseAgeStrict: true
 minimumReleaseAge: 1440
+overrides:
+  'eslint@10.13.0>minimatch': 11.0.4
+  '@eslint/config-array@0.23.5>minimatch': 11.0.4

@@ -2,6 +2,10 @@
 
 Recorded 2026-11-04. This source-only Task3-A slice starts from published `9cd6c89`; it prepares deterministic authorization rules without connecting the sign-in page or adding runtime routes, a Supabase SDK, cookies, credentials or database changes.
 
+## Subsequent publication and CI
+
+This slice was published as `4ea74ea` in [draft PR5](https://github.com/Let-cal/japanese-learning-studio/pull/5). Its CI passed329ordinarytests,11Chromiumtests,type/API/lint/build checks, then failed dependency audit on minimatch. The dependent real-Postgres job was skipped; bootstrap/media checks passed. See [advisory remediation](dependency-advisories.md) for the prepared source fix. The local preparation evidence below is historical; it does not claim all-green CI or integrated Auth.
+
 ## Prepared behavior
 
 `evaluateOwnerSession()` consumes explicit trusted server snapshots. It requires a current active owner, matching authorized Auth subject and dataset owner, a nonrevoked session and valid timestamps. Missing or malformed authority cannot become an owner bootstrap. Email, user metadata and arbitrary extra fields neither grant access nor enter the output.
