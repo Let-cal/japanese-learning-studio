@@ -1,8 +1,10 @@
 # ADR 0004: Command transaction proof and runtime boundary
 
-Status: **test-proof design prepared; production RPC direction unchanged; publication/CI approval pending**
+Status: **test-only proof published and passed in PR4; production RPC direction unchanged**
 
 Date: 2026-10-30
+
+Execution evidence updated2026-10-31: commit `9cd6c89`, [run41143583717](https://github.com/Let-cal/japanese-learning-studio/actions/runs/41143583717), 28 real PostgreSQL17.11 cases passed. This does not approve a production database adapter or close human security/UAT/release gates.
 
 ## Context
 

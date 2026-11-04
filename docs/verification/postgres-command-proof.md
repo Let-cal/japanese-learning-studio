@@ -2,7 +2,13 @@
 
 Recorded 2026-10-31. Source preparation starts from `2ef48b9`; this document describes the new uncommitted follow-up, not the already successful checks on draft PR3. Publication and activation of the additional CI job require the owner's concrete diff approval.
 
-## Evidence layers
+## Subsequent approved CI execution
+
+The owner approved this snapshot and it was published as `9cd6c89e2976c6239ea244cf7407e6c277e2d143` in [draft PR4](https://github.com/Let-cal/japanese-learning-studio/pull/4). All five jobs passed. [Product run41143583717](https://github.com/Let-cal/japanese-learning-studio/actions/runs/41143583717) executed **all 28 real SQL cases on PostgreSQL17.11 successfully**, alongside 201 ordinary tests, API/type/build/lint checks and 11 Chromium tests. [Bootstrap41143583826](https://github.com/Let-cal/japanese-learning-studio/actions/runs/41143583826) and [media41143583723](https://github.com/Let-cal/japanese-learning-studio/actions/runs/41143583723) also passed. The tested temporary PR-merge tree matched the published head tree; no main merge or deployment occurred.
+
+The preparation-only records below are historical and are superseded by this execution evidence for the disposable suite. Product Auth/RPC/domain/UAT/security/release gaps remain; a synthetic SQL fixture is not integrated authentication or full Task2 completion.
+
+## Historical preparation evidence
 
 | Layer | Observed result |
 | --- | --- |
