@@ -16,6 +16,7 @@ test('public sample works without login; route heading and title follow navigati
 
 test('sample practice reveals a prepared example, resets only its state, and effects persist', async ({ page }) => {
   await page.goto('/demo/practice');
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await page.evaluate(() => localStorage.setItem('unrelated-owner-marker', 'keep'));
   await page.getByRole('button', { name: 'Turn effects off' }).click();
   await page.getByRole('button', { name: 'Show sample meaning' }).click();
@@ -28,6 +29,7 @@ test('sample practice reveals a prepared example, resets only its state, and eff
   await expect(page.getByRole('status')).toContainText('Sample workspace reset');
   expect(await page.evaluate(() => localStorage.getItem('unrelated-owner-marker'))).toBe('keep');
   await page.goto('/demo/practice');
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Show sample meaning' })).toBeVisible();
 });
 
@@ -46,6 +48,7 @@ test('OS reduced motion remains effective and keyboard skip link reaches content
   await page.getByRole('navigation', { name: 'Study' }).getByRole('link', { name: 'Practice' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Notice. Recall. Look again.' })).toBeFocused();
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await page.getByRole('button', { name: 'Show sample meaning' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText('xem lại; cân nhắc lại', { exact: true })).toBeVisible();
@@ -82,6 +85,7 @@ test('sample reveal and effects remain usable when browser storage is blocked', 
     for (const method of ['getItem', 'setItem', 'removeItem']) Object.defineProperty(Storage.prototype, method, { value: () => { throw new DOMException('Storage disabled', 'SecurityError'); } });
   });
   await page.goto('/demo/practice');
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await page.getByRole('button', { name: 'Show sample meaning' }).click();
   await expect(page.getByText('xem lại; cân nhắc lại', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Turn effects off' }).click();
@@ -93,6 +97,7 @@ test('sample actions remain usable when storage reads work but writes exceed quo
     Object.defineProperty(Storage.prototype, 'setItem', { value: () => { throw new DOMException('Quota exceeded', 'QuotaExceededError'); } });
   });
   await page.goto('/demo/practice');
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await page.getByRole('button', { name: 'Show sample meaning' }).click();
   await expect(page.getByText('xem lại; cân nhắc lại', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Turn effects off' }).click();
@@ -100,5 +105,6 @@ test('sample actions remain usable when storage reads work but writes exceed quo
   await page.getByRole('link', { name: 'Demo guide' }).click();
   await page.getByRole('button', { name: 'Reset sample workspace' }).click();
   await page.getByRole('navigation', { name: 'Study' }).getByRole('link', { name: 'Practice' }).click();
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Show sample meaning' })).toBeVisible();
 });
