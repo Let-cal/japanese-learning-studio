@@ -177,7 +177,7 @@ export const oauthCases: readonly [string,(db: OAuthDatabase)=>Promise<void>][] 
     const f=oauthFlow(db); await f.issue(); await db.query('UPDATE jls_auth.browser_bindings SET generation=1');
     assert.equal((await f.begin()).kind,'denied'); await db.query('UPDATE jls_auth.browser_bindings SET generation=0');
     await f.begin(); await f.claim(); await f.sent(); assert.equal((await f.commit({12:new Date(0)})).kind,'denied');
-    await db.query("UPDATE jls_auth.oauth_attempts SET issued_at=clock_timestamp()-interval '11 minutes',expires_at=clock_timestamp()-interval '1 minute'");
+    await db.query("UPDATE jls_auth.oauth_attempts SET issued_at=statement_timestamp()-interval '11 minutes',expires_at=statement_timestamp()-interval '1 minute'");
     assert.equal((await f.commit()).kind,'denied'); assert.equal((await f.claim()).kind,'restart_required');
   }],
   ['O12 keeps one live attempt and requires closing a possible transmission before a fresh login', async db => {
@@ -244,7 +244,7 @@ export const oauthCases: readonly [string,(db: OAuthDatabase)=>Promise<void>][] 
   }],
   ['O19 cancels an expired unsent attempt and never reuses its encrypted verifier', async db => {
     const f=oauthFlow(db); await f.issue(); await f.begin(); await f.claim();
-    await db.query("UPDATE jls_auth.oauth_attempts SET issued_at=clock_timestamp()-interval '11 minutes',expires_at=clock_timestamp()-interval '1 minute'");
+    await db.query("UPDATE jls_auth.oauth_attempts SET issued_at=statement_timestamp()-interval '11 minutes',expires_at=statement_timestamp()-interval '1 minute'");
     assert.equal((await f.sent()).kind,'restart_required');
     await f.issue({0:OAUTH.close,4:OAUTH.claim,5:'0'.repeat(64),9:OAUTH.close});
     assert.equal((await f.begin({1:'0'.repeat(64),2:OAUTH.close,4:OAUTH.close,5:'1'.repeat(64)})).kind,'begun');
@@ -280,7 +280,7 @@ export const oauthCases: readonly [string,(db: OAuthDatabase)=>Promise<void>][] 
   }],
   ['O23 cannot consume an expired proof or issue mutation authority for a revoked current session', async db => {
     const f=oauthFlow(db); await f.issue();
-    await db.query("UPDATE jls_auth.csrf_proofs SET issued_at=clock_timestamp()-interval '16 minutes',expires_at=clock_timestamp()-interval '1 minute'");
+    await db.query("UPDATE jls_auth.csrf_proofs SET issued_at=statement_timestamp()-interval '16 minutes',expires_at=statement_timestamp()-interval '1 minute'");
     assert.equal((await f.begin()).kind,'denied');
     await db.query("UPDATE jls_auth.csrf_proofs SET issued_at=clock_timestamp(),expires_at=clock_timestamp()+interval '14 minutes'");
     await f.begin(); await f.claim(); await f.sent(); await f.commit();
@@ -304,7 +304,7 @@ export const oauthCases: readonly [string,(db: OAuthDatabase)=>Promise<void>][] 
     await db.query("UPDATE jls_auth.candidate_cleanup_work SET lease_expires_at=clock_timestamp()-interval '1 second'");
     assert.equal((await oauthRpc(db,8,[OAUTH.attempt,OAUTH.cleanupClaim,'completed'])).kind,'denied');
     assert.equal((await oauthRpc(db,7,[OAUTH.attempt,OAUTH.close])).kind,'cleanup');
-    await db.query("UPDATE jls_auth.candidate_cleanup_work SET created_at=clock_timestamp()-interval '2 hours',deadline_at=clock_timestamp()-interval '1 hour'");
+    await db.query("UPDATE jls_auth.candidate_cleanup_work SET created_at=statement_timestamp()-interval '2 hours',deadline_at=statement_timestamp()-interval '1 hour'");
     assert.equal((await oauthRpc(db,7,[OAUTH.attempt,OAUTH.claim])).kind,'failed');
     assert.equal((await scalar(db,'SELECT state FROM jls_auth.candidate_cleanup_work')).state,'failed');
   }],

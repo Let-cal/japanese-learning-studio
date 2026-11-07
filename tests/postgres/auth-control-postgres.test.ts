@@ -82,7 +82,7 @@ describe('owned disposable PostgreSQL Auth durable control store (TEST ONLY)', (
   it('A08 rejects wrong/expired/absent proof without changing state, including expired session', async () => {
     expect(await logout('absent')).toEqual({ kind: 'denied' });
     expect(await logout(AUTH.cookie, 'f'.repeat(64))).toEqual({ kind: 'denied' });
-    await db().query("UPDATE jls_auth.csrf_proofs SET issued_at=clock_timestamp()-interval '20 minutes',expires_at=clock_timestamp()-interval '5 minutes'");
+    await db().query("UPDATE jls_auth.csrf_proofs SET issued_at=statement_timestamp()-interval '20 minutes',expires_at=statement_timestamp()-interval '5 minutes'");
     expect(await logout()).toEqual({ kind: 'denied' });
     expect((await db().query('SELECT generation::int FROM jls_auth.browser_bindings')).rows[0]?.generation).toBe(0);
   });
