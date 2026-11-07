@@ -20,6 +20,7 @@ artifacts/
 # Provider links and private working evidence
 .vercel/
 .supabase/
+supabase/.temp/
 .superpowers/
 .task0-cache/
 .private/
