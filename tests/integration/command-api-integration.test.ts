@@ -49,15 +49,18 @@ it.each(examples)('losslessly round-trips the advertised $kind receipt on fresh 
   expect(replay).toEqual(first);
   expect(schema.safeParse(replay.data).success).toBe(true);
 });
-it('binds every planned mutation to the same persisted schema as its documented response data', () => {
+it('binds every planned domain mutation to the same persisted schema as its documented response data', () => {
   const api = buildOpenApiDocument();
-  for (const methods of Object.values(api.paths)) {
+  let domainMutations = 0;
+  for (const [path, methods] of Object.entries(api.paths)) {
+    if (path.startsWith('/api/v1/auth/')) continue;
     for (const [method, operation] of Object.entries(methods)) {
       if (method === 'get') continue;
+      domainMutations++;
       const kind = operation['x-commandKind'];
       if (!kind || !isAcknowledgementKind(kind)) throw new Error('Mutation lacks a registered receipt contract.');
       const success = Object.entries(operation.responses).find(([status]) => Number(status) < 300)?.[1];
-      if (!success) throw new Error('Missing successful response.');
+      if (!success?.content?.['application/json']) throw new Error('Missing successful JSON response.');
       const name = success.content['application/json'].schema.$ref.replace('#/components/schemas/', '');
       const properties = api.components.schemas[name].properties as Record<string, unknown>;
       const { $schema, ...persistedSchema } = z.toJSONSchema(acknowledgementSchemas[kind], { target: 'draft-2020-12' });
@@ -65,4 +68,5 @@ it('binds every planned mutation to the same persisted schema as its documented 
       expect(properties.data).toEqual(persistedSchema);
     }
   }
+  expect(domainMutations).toBe(8);
 });

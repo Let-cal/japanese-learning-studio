@@ -11,10 +11,14 @@ it('validates the generated core slice and checks freshness without modifying th
   expect(checkApiDocument(text)).toBe(true);
   expect(checkApiDocument(text.replace('M1 core API contract slice', 'stale'))).toBe(false);
   const document = buildOpenApiDocument();
+  let domainOperations = 0;
   for (const [path, item] of Object.entries(document.paths)) {
     expect(path.startsWith('/api/v1/')).toBe(true);
     for (const [method, operation] of Object.entries(item)) {
       expect(operation['x-implementationStatus']).toBe('planned');
+      // Auth has explicit independent proof/Origin prerequisites, tested in auth-contracts.test.ts.
+      if (path.startsWith('/api/v1/auth/') || path === '/api/v1/me') continue;
+      domainOperations++;
       expect(operation.security).toEqual([{ OwnerSession: [] }]);
       expect(operation.parameters.some(p => p.$ref === '#/components/parameters/DatasetEpoch')).toBe(true);
       if (method !== 'get') {
@@ -22,11 +26,13 @@ it('validates the generated core slice and checks freshness without modifying th
         expect(operation.requestBody?.content['application/json'].schema.$ref).toMatch(/^#\/components\/schemas\//);
       }
       for (const [status, response] of Object.entries(operation.responses)) {
+        if (Number(status) < 300) expect(response.headers?.ETag).toBeDefined();
         if (status === '201' || status === '202') expect(response.headers?.Location).toBeDefined();
         if (Number(status) >= 400) expect(response.content?.['application/problem+json']).toBeDefined();
       }
     }
   }
+  expect(domainOperations).toBe(12);
   const create = document.paths['/api/v1/guided-repairs'].post;
   expect(create.parameters.some(p => p.$ref === '#/components/parameters/IfMatch')).toBe(false);
   expect(document.paths['/api/v1/guided-repairs/{id}/events'].post.parameters.some(p => p.$ref === '#/components/parameters/IfMatch')).toBe(true);

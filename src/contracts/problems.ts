@@ -10,6 +10,7 @@ export const problemRegistry = {
   idempotency_key_reused: [409, 'Operation identity already used for different input.'],
   test_reference_locked: [409, 'Finish the unfinished Test to view this reference.'],
   session_closed: [409, 'Session execution is closed.'],
+  sign_in_restart_required: [409, 'Sign-in must be restarted.'],
   repair_origin_affected: [409, 'Repair origin requires review.'],
   version_conflict: [412, 'Resource version changed.'],
   execution_conflict: [409, 'Execution has a conflicting proposal.'],
@@ -31,6 +32,10 @@ const variants = Object.entries(problemRegistry).map(([code, [status, message]])
 export const ProblemSchema = z.union(variants);
 export function problemSchemaForStatus(status: number) {
   return z.union(variants.filter((_, index) => Object.values(problemRegistry)[index][0] === status));
+}
+/** Auth uses a closed subset rather than admitting unrelated domain problem codes. */
+export function problemSchemaForCodes(codes: readonly ProblemCode[]) {
+  return z.union(variants.filter((_, index) => codes.includes(Object.keys(problemRegistry)[index] as ProblemCode)));
 }
 export type Problem = z.infer<typeof ProblemSchema>;
 export function createProblem(code: ProblemCode, requestId: string, fields: { conflictId?: string; currentVersion?: number } = {}): Problem {
