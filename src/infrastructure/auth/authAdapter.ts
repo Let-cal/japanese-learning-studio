@@ -14,10 +14,10 @@ export interface AuthIdentityInput {
 export type AuthIdentityResult =
   | { readonly kind: 'verified'; readonly authSubject: string; readonly upstreamSessionId: string; readonly expiresAt: number }
   | { readonly kind: 'rejected'; readonly reason: 'invalid_token' | 'identity_mismatch' | 'anonymous' }
-  | { readonly kind: 'unavailable'; readonly reason: 'configuration' | 'invalid_facts' | 'timeout' | 'transport' | 'upstream_rejected' | 'invalid_response' };
+  | { readonly kind: 'unavailable'; readonly reason: 'configuration' | 'invalid_facts' | 'timeout' | 'cancelled' | 'transport' | 'upstream_rejected' | 'invalid_response' };
 
 export interface AuthIdentityVerifier {
-  verify(input: unknown): Promise<AuthIdentityResult>;
+  verify(input: unknown, signal?: AbortSignal): Promise<AuthIdentityResult>;
 }
 
 export interface AuthCandidateInput {
@@ -29,7 +29,7 @@ type IdentityFields = Omit<Extract<AuthIdentityResult, { kind: 'verified' }>, 'k
 type AuthVerificationFailure = Exclude<AuthIdentityResult, { kind: 'verified' }>;
 export type AuthCandidateResult = ({ readonly kind: 'verified_candidate' } & IdentityFields) | AuthVerificationFailure;
 export interface AuthCandidateVerifier {
-  verifyCandidate(input: unknown): Promise<AuthCandidateResult>;
+  verifyCandidate(input: unknown, signal?: AbortSignal): Promise<AuthCandidateResult>;
 }
 
 type InternalResult = ({ readonly kind: 'identity' } & IdentityFields) | AuthVerificationFailure;
@@ -91,9 +91,10 @@ export function createAuthIdentityVerifier(
   monotonicClock: () => number = () => performance.now(),
 ): AuthIdentityVerifier {
   const verifyIdentity = createVerifier('continuation', configuration, fetcher, monotonicClock);
-  return Object.freeze({ async verify(input: unknown): Promise<AuthIdentityResult> {
-    const result = await verifyIdentity(input);
+  return Object.freeze({ async verify(input: unknown, signal?: AbortSignal): Promise<AuthIdentityResult> {
+    const result = await verifyIdentity(input, signal);
     if (result.kind !== 'identity') return result;
+    if (signal?.aborted) return unavailable('cancelled');
     return Object.freeze({ kind: 'verified', authSubject: result.authSubject,
       upstreamSessionId: result.upstreamSessionId, expiresAt: result.expiresAt });
   } });
@@ -110,9 +111,10 @@ export function createAuthCandidateVerifier(
   monotonicClock: () => number = () => performance.now(),
 ): AuthCandidateVerifier {
   const verifyIdentity = createVerifier('candidate', configuration, fetcher, monotonicClock);
-  return Object.freeze({ async verifyCandidate(input: unknown): Promise<AuthCandidateResult> {
-    const result = await verifyIdentity(input);
+  return Object.freeze({ async verifyCandidate(input: unknown, signal?: AbortSignal): Promise<AuthCandidateResult> {
+    const result = await verifyIdentity(input, signal);
     if (result.kind !== 'identity') return result;
+    if (signal?.aborted) return unavailable('cancelled');
     return Object.freeze({ kind: 'verified_candidate', authSubject: result.authSubject,
       upstreamSessionId: result.upstreamSessionId, expiresAt: result.expiresAt });
   } });
@@ -124,7 +126,7 @@ function createVerifier(
   configuration: AuthIdentityConfiguration,
   fetcher: typeof fetch,
   monotonicClock: () => number,
-): (input: unknown) => Promise<InternalResult> {
+): (input: unknown, signal?: AbortSignal) => Promise<InternalResult> {
   let trusted: { origin: string; key: string } | null = null;
   try {
     const config = snapshot(configuration, ['supabaseOrigin', 'publishableKey']);
@@ -134,7 +136,8 @@ function createVerifier(
     }
   } catch { /* Closed, sanitized capability on invalid configuration. */ }
 
-  return async (input: unknown): Promise<InternalResult> => {
+  return async (input: unknown, signal?: AbortSignal): Promise<InternalResult> => {
+    if (signal?.aborted) return unavailable('cancelled');
     if (!trusted) return unavailable('configuration');
     const { origin, key } = trusted;
     let accessToken: string;
@@ -175,10 +178,17 @@ function createVerifier(
         try { void reader.cancel().catch(() => {}); } catch { /* Best effort. */ }
       }
     };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const deadline = new Promise<InternalResult>(resolve => {
-      timer = setTimeout(() => { cancel(); resolve(unavailable('timeout')); }, 5000);
-    });
+    const releaseReader = () => {
+      try {
+        reader?.releaseLock();
+        reader = undefined;
+      } catch { /* The pending read owns the lock until it settles. */ }
+    };
+    const { promise: interruption, resolve } = Promise.withResolvers<InternalResult>();
+    const onAbort = () => { resolve(unavailable('cancelled')); cancel(); };
+    if (signal?.aborted) return unavailable('cancelled');
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => { resolve(unavailable('timeout')); cancel(); }, 5000);
     const request = (async (): Promise<InternalResult> => {
       try {
         const response = await fetcher(`${origin}/auth/v1/user`, {
@@ -187,7 +197,10 @@ function createVerifier(
           cache: 'no-store', credentials: 'omit', redirect: 'error', signal: controller.signal,
         });
         reader = response.body?.getReader();
-        if (completed || controller.signal.aborted) { cancel(); return unavailable('timeout'); }
+        if (completed || controller.signal.aborted) {
+          cancel();
+          return unavailable(signal?.aborted ? 'cancelled' : 'timeout');
+        }
         if (response.status !== 200 && response.status !== 401) return unavailable('upstream_rejected');
         const mediaType = response.headers.get('Content-Type')?.split(';', 1)[0].trim().toLowerCase();
         if (mediaType !== 'application/json' || !reader) return unavailable('invalid_response');
@@ -195,7 +208,7 @@ function createVerifier(
         let length = 0;
         while (true) {
           const chunk = await reader.read();
-          if (completed || controller.signal.aborted) return unavailable('timeout');
+          if (completed || controller.signal.aborted) return unavailable(signal?.aborted ? 'cancelled' : 'timeout');
           if (chunk.done) break;
           length += chunk.value.byteLength;
           if (length > 64 * 1024) return unavailable('invalid_response');
@@ -237,15 +250,21 @@ function createVerifier(
           || notBefore === null || notBefore > notBeforeNow) return rejected('invalid_token');
         return Object.freeze({ kind: 'identity', authSubject, upstreamSessionId, expiresAt });
       } catch { return unavailable('transport'); }
+      finally {
+        // A response that arrives after the race still owns its reader.
+        if (completed) releaseReader();
+      }
     })();
     try {
-      const result = await Promise.race([deadline, request]);
+      const result = await Promise.race([interruption, request]);
+      if (signal?.aborted) return unavailable('cancelled');
       if (result.kind !== 'identity') cancel();
       return result;
     } finally {
       completed = true;
+      signal?.removeEventListener('abort', onAbort);
       clearTimeout(timer);
-      try { reader?.releaseLock(); } catch { /* Pending late read/cancel owns its lock. */ }
+      releaseReader();
     }
   };
 }

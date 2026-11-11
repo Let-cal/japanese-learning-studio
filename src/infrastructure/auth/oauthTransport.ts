@@ -21,15 +21,17 @@ const unknown = (reason: Extract<OAuthTokenResult, { kind: 'outcome_unknown' }>[
   Object.freeze({ kind: 'outcome_unknown', reason });
 
 function snapshot(value: unknown, names: readonly string[]): Record<string, unknown> | null {
-  if (value === null || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))
-    || Reflect.ownKeys(value).length !== names.length) return null;
-  const result: Record<string, unknown> = Object.create(null);
-  for (const name of names) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, name);
-    if (!descriptor || !('value' in descriptor)) return null;
-    result[name] = descriptor.value;
-  }
-  return result;
+  try {
+    if (value === null || typeof value !== 'object' || ![Object.prototype, null].includes(Object.getPrototypeOf(value))
+      || Reflect.ownKeys(value).length !== names.length) return null;
+    const result: Record<string, unknown> = Object.create(null);
+    for (const name of names) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, name);
+      if (!descriptor || !('value' in descriptor)) return null;
+      result[name] = descriptor.value;
+    }
+    return result;
+  } catch { return null; }
 }
 function validVerifier(value: unknown): value is string {
   return typeof value === 'string' && /^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(value);
@@ -65,26 +67,37 @@ export function createOAuthTransport(configuration: unknown, fetcher: typeof fet
   async function send(grant: 'pkce' | 'refresh_token', body: object, signal?: AbortSignal): Promise<OAuthTokenResult> {
     if (!trusted) return notSent('configuration');
     if (signal?.aborted) return notSent('cancelled');
-    const started = monotonicClock();
+    let started: number;
+    try { started = monotonicClock(); }
+    catch { return notSent('configuration'); }
+    if (signal?.aborted) return notSent('cancelled');
+    if (!Number.isFinite(started) || started < 0) return notSent('configuration');
     const expired = () => {
       const current = monotonicClock();
       return !Number.isFinite(started) || !Number.isFinite(current) || current < started || current - started >= 5000;
     };
     const controller = new AbortController();
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let cancelledReader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     let completed = false;
     const cancel = () => {
       controller.abort();
-      // Best-effort cleanup must not block the caller's deadline, even for a broken stream.
-      try { void reader?.cancel().catch(() => {}); } catch { /* No secret-bearing cleanup error escapes. */ }
+      if (reader && reader !== cancelledReader) {
+        cancelledReader = reader;
+        // Best-effort cleanup must not block the caller's deadline.
+        try { void reader.cancel().catch(() => {}); } catch { /* No secret-bearing cleanup error escapes. */ }
+      }
     };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let onAbort: (() => void) | undefined;
-    const stop = new Promise<OAuthTokenResult>(resolve => {
-      timer = setTimeout(() => { cancel(); resolve(unknown('timeout')); }, 5000);
-      onAbort = () => { cancel(); resolve(unknown('cancelled')); };
-      signal?.addEventListener('abort', onAbort, { once: true });
-    });
+    const releaseReader = () => {
+      try {
+        reader?.releaseLock();
+        reader = undefined;
+      } catch { /* The pending read owns the lock until it settles. */ }
+    };
+    const { promise: stop, resolve } = Promise.withResolvers<OAuthTokenResult>();
+    const onAbort = () => { resolve(unknown('cancelled')); cancel(); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    const timer = setTimeout(() => { resolve(unknown('timeout')); cancel(); }, 5000);
     const request = (async (): Promise<OAuthTokenResult> => {
       try {
         const response = await fetcher(`${trusted.origin}/auth/v1/token?grant_type=${grant}`, {
@@ -120,15 +133,18 @@ export function createOAuthTransport(configuration: unknown, fetcher: typeof fet
         if (expired()) { cancel(); return unknown('timeout'); }
         return Object.freeze({ kind: 'tokens', accessToken: value.access_token, refreshToken: value.refresh_token });
       } catch { return unknown('transport'); }
+      finally { if (completed) releaseReader(); }
     })();
     try {
       const result = await Promise.race([stop, request]);
+      if (result.kind === 'tokens' && signal?.aborted) return unknown('cancelled');
       if (result.kind !== 'tokens') cancel();
       return result;
     } finally {
       completed = true;
       clearTimeout(timer);
-      if (onAbort) signal?.removeEventListener('abort', onAbort);
+      signal?.removeEventListener('abort', onAbort);
+      releaseReader();
     }
   }
 
@@ -141,14 +157,14 @@ export function createOAuthTransport(configuration: unknown, fetcher: typeof fet
         code_challenge: derivePkceChallenge(verifier), code_challenge_method: 's256' }).toString();
       return Object.freeze({ kind: 'ready' as const, url: url.href });
     },
-    async exchange(input: unknown, signal?: AbortSignal) {
+    exchange(input: unknown, signal?: AbortSignal) {
       const value = snapshot(input, ['authorizationCode', 'codeVerifier']);
-      if (!value || !boundedToken(value.authorizationCode, 2048) || !validVerifier(value.codeVerifier)) return notSent('invalid_input');
+      if (!value || !boundedToken(value.authorizationCode, 2048) || !validVerifier(value.codeVerifier)) return Promise.resolve(notSent('invalid_input'));
       return send('pkce', { auth_code: value.authorizationCode, code_verifier: value.codeVerifier }, signal);
     },
-    async refresh(input: unknown, signal?: AbortSignal) {
+    refresh(input: unknown, signal?: AbortSignal) {
       const value = snapshot(input, ['refreshToken']);
-      if (!value || !boundedToken(value.refreshToken)) return notSent('invalid_input');
+      if (!value || !boundedToken(value.refreshToken)) return Promise.resolve(notSent('invalid_input'));
       return send('refresh_token', { refresh_token: value.refreshToken }, signal);
     },
   });

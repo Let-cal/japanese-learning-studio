@@ -284,3 +284,88 @@ describe('initial Auth candidate verifier', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Auth identity request cancellation', () => {
+  const cancelled = { kind: 'unavailable', reason: 'cancelled' };
+
+  it('does not contact Auth when the caller has already cancelled', async () => {
+    const controller = new AbortController();
+    controller.abort('private request reason');
+    const fetcher = transport(() => response());
+    const continuation = createAuthIdentityVerifier(configuration, fetcher);
+    const candidate = createAuthCandidateVerifier(configuration, fetcher);
+
+    expect(await continuation.verify(facts(), controller.signal)).toEqual(cancelled);
+    expect(await candidate.verifyCandidate({ accessToken: token(), trustedNow: 100_000 }, controller.signal))
+      .toEqual(cancelled);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('cancels a stalled body and settles before the internal deadline', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const readStarted = Promise.withResolvers<void>();
+    const cancelBody = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      pull: () => { readStarted.resolve(); },
+      cancel: cancelBody,
+    }, { highWaterMark: 0 });
+    const fetcher = transport(() => new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+    const pending = createAuthIdentityVerifier(configuration, fetcher).verify(facts(), controller.signal);
+    await readStarted.promise;
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    expect(await pending).toEqual(cancelled);
+    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancels a body that arrives after the caller has cancelled', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const headers = Promise.withResolvers<Response>();
+    const fetcher = transport(() => headers.promise);
+    const pending = createAuthCandidateVerifier(configuration, fetcher)
+      .verifyCandidate({ accessToken: token(), trustedNow: 100_000 }, controller.signal);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await pending).toEqual(cancelled);
+
+    const cancelBody = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel: cancelBody });
+    headers.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(body.locked).toBe(false);
+  });
+
+  it('rejects a successful response when cancellation occurs before verification returns', async () => {
+    const controller = new AbortController();
+    const clock = vi.fn().mockReturnValueOnce(0).mockImplementationOnce(() => {
+      controller.abort();
+      return 1;
+    });
+
+    const verifier = createAuthIdentityVerifier(configuration, transport(() => response()), clock);
+    expect(await verifier.verify(facts(), controller.signal)).toEqual(cancelled);
+  });
+
+  it.each(['continuation', 'candidate'])('rechecks cancellation at the public %s result boundary', async stage => {
+    const controller = new AbortController();
+    const clock = vi.fn().mockReturnValueOnce(0).mockImplementationOnce(() => {
+      queueMicrotask(() => queueMicrotask(() => queueMicrotask(() => controller.abort())));
+      return 1;
+    });
+    const fetcher = transport(() => response());
+    const pending = stage === 'continuation'
+      ? createAuthIdentityVerifier(configuration, fetcher, clock).verify(facts(), controller.signal)
+      : createAuthCandidateVerifier(configuration, fetcher, clock)
+        .verifyCandidate({ accessToken: token(), trustedNow: 100_000 }, controller.signal);
+    expect(await pending).toEqual(cancelled);
+  });
+});
