@@ -155,3 +155,56 @@ describe('fixed Google PKCE transport (tokens remain unverified)', () => {
     expect(await transport.refresh({ refreshToken: 'old_refresh' })).toEqual({ kind: 'outcome_unknown', reason: 'timeout' });
   });
 });
+
+describe('OAuth cancellation at the transport boundary', () => {
+  it('does not send when cancellation occurs during preflight', async () => {
+    const controller = new AbortController();
+    const fetcher = vi.fn<typeof fetch>(async () => response());
+    const transport = createOAuthTransport(configuration, fetcher, () => {
+      controller.abort();
+      return 1;
+    });
+
+    expect(await transport.refresh({ refreshToken: 'old_refresh' }, controller.signal))
+      .toEqual({ kind: 'not_sent', reason: 'cancelled' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('reports an unknown outcome if cancellation wins before the token result returns', async () => {
+    const controller = new AbortController();
+    const clock = vi.fn().mockReturnValue(0);
+    for (let check = 0; check < 4; check++) clock.mockReturnValueOnce(0);
+    clock.mockImplementationOnce(() => { queueMicrotask(() => controller.abort()); return 0; });
+    const fetcher = vi.fn<typeof fetch>(async () => response());
+    const transport = createOAuthTransport(configuration, fetcher, clock);
+
+    expect(await transport.refresh({ refreshToken: 'old_refresh' }, controller.signal))
+      .toEqual({ kind: 'outcome_unknown', reason: 'cancelled' });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it('cancels and releases a late response body after the request returns', async () => {
+    const controller = new AbortController();
+    const headers = Promise.withResolvers<Response>();
+    const cancelBody = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ cancel: cancelBody });
+    const transport = createOAuthTransport(configuration, async () => headers.promise);
+    const pending = transport.refresh({ refreshToken: 'old_refresh' }, controller.signal);
+    controller.abort();
+    expect(await pending).toEqual({ kind: 'outcome_unknown', reason: 'cancelled' });
+
+    headers.resolve(new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+    await vi.waitFor(() => expect(cancelBody).toHaveBeenCalledOnce());
+    expect(body.locked).toBe(false);
+  });
+
+  it('sanitizes unreadable input before any request', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => response());
+    const value = new Proxy({}, { ownKeys() { throw new Error('private diagnostic'); } });
+    const transport = createOAuthTransport(configuration, fetcher);
+
+    expect(await transport.refresh(value)).toEqual({ kind: 'not_sent', reason: 'invalid_input' });
+    expect(await transport.exchange(value)).toEqual({ kind: 'not_sent', reason: 'invalid_input' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
