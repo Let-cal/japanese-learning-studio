@@ -46,8 +46,16 @@ const foundationSignatures = [
   signatures.retire, signatures.logout,
 ];
 const sourceFiles = ['20261106155504_auth_control.sql', '20261107050258_auth_oauth_lifecycle.sql', '20261111153831_auth_refresh.sql'];
-export const refreshSources = () => Promise.all(sourceFiles.map(file =>
-  readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8')));
+const oauthLookupMigration = '20261113123612_auth_oauth_lookup.sql';
+export const oauthLookupSignatures = {
+  browser: 'jls_auth_browser_resolve_v1(text)',
+  action: 'jls_auth_action_resolve_v1(text,text,text,text)',
+  callback: 'jls_auth_callback_inspect_v1(text,text,text)',
+} as const;
+export const refreshSources = (withOAuthLookup = false) => {
+  const files = withOAuthLookup ? [...sourceFiles, oauthLookupMigration] : sourceFiles;
+  return Promise.all(files.map(file => readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8')));
+};
 
 type Row = Record<string, unknown>;
 type Queryable = { query(sql: string, values?: unknown[]): Promise<{ rows: Row[] }> };
@@ -94,7 +102,7 @@ async function transaction<T>(db: Queryable, run: () => Promise<T>): Promise<T> 
   }
 }
 
-export async function initializeRefreshFixture(pool: Pool) {
+export async function initializeRefreshFixture(pool: Pool, withOAuthLookup = false) {
   const db = await pool.connect();
   try {
     await assertServerIdentity(adapt(db));
@@ -104,7 +112,7 @@ export async function initializeRefreshFixture(pool: Pool) {
       (SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public') AS functions,
       (SELECT count(*)::int FROM pg_roles WHERE rolname IN ('anon','authenticated','service_role','supabase_auth_admin','jls_refresh_rls_probe')) AS roles`);
     assert.deepEqual(rows, [{ schemas: 0, objects: 0, functions: 0, roles: 0 }], 'Refresh fixture requires a fresh disposable database.');
-    const sources = await refreshSources();
+    const sources = await refreshSources(withOAuthLookup);
     await transaction(db, async () => {
       await db.query(refreshFixtureSetup);
       for (const sql of sources) {
@@ -116,14 +124,15 @@ export async function initializeRefreshFixture(pool: Pool) {
   } finally { db.release(true); }
 }
 
-export async function cleanupRefreshFixture(pool: Pool) {
+export async function cleanupRefreshFixture(pool: Pool, withOAuthLookup = false) {
   const db = await pool.connect();
   try {
     await assertServerIdentity(adapt(db));
     await assertRefreshSentinel(db);
     await transaction(db, async () => {
       const newSignatures = Object.values(signatures).filter(signature => !foundationSignatures.includes(signature));
-      for (const signature of [...newSignatures, ...oauthSignatures, ...foundationSignatures]) {
+      const lookupSignatures = withOAuthLookup ? Object.values(oauthLookupSignatures) : [];
+      for (const signature of [...lookupSignatures, ...newSignatures, ...oauthSignatures, ...foundationSignatures]) {
         await db.query(`DROP FUNCTION public.${signature}`);
       }
       // The sentinel and role checks above establish ownership of these exact schemas.
