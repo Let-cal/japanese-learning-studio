@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Pool } from 'pg';
+import { authConfirmCases, confirmSession, prepareConfirm } from './authConfirmCases';
 import {
   cleanupRefreshFixture, createRefreshProofPool, initializeRefreshFixture, REFRESH,
   refreshCases, refreshFlow, resetRefreshFixture,
@@ -32,6 +33,7 @@ describe('owned disposable PostgreSQL refresh and cleanup (TEST ONLY)', () => {
   });
 
   for (const [name, run] of refreshCases) it(name, async () => { await run(db()); });
+  for (const [name, run] of authConfirmCases) it(name, async () => { await run(db()); });
 
   it('N01 concurrent refresh claims expose the original envelope to exactly one holder', async () => {
     const flow = refreshFlow(db());
@@ -53,9 +55,10 @@ describe('owned disposable PostgreSQL refresh and cleanup (TEST ONLY)', () => {
       ? [{ state: 'sent', sent: true }] : [{ state: 'released', sent: false }]);
   });
 
-  it('N03 rechecks idle expiry after waiting for the shared identity lock', async () => {
+  it.each(['refresh', 'confirm'] as const)('N03 %s rechecks idle expiry after waiting for the shared identity lock', async operation => {
     const flow = refreshFlow(db());
-    await flow.claim(); await flow.mark();
+    if (operation === 'refresh') { await flow.claim(); await flow.mark(); }
+    else await prepareConfirm(db());
     const blocker = await db().connect();
     const waiter = await db().connect();
     const errors: unknown[] = [];
@@ -67,7 +70,7 @@ describe('owned disposable PostgreSQL refresh and cleanup (TEST ONLY)', () => {
       const waiterPid = (await waiter.query('SELECT pg_backend_pid() AS pid')).rows[0].pid;
       await db().query(`UPDATE jls_auth.app_sessions SET created_at=statement_timestamp()-interval '2 days',
         last_activity_at=statement_timestamp()-interval '24 hours'+interval '140 milliseconds'`);
-      pending = refreshFlow(waiter).finish();
+      pending = operation === 'refresh' ? refreshFlow(waiter).finish() : confirmSession(waiter);
       void pending.catch(() => {});
       let observedWait = false;
       let expired = false;
@@ -84,7 +87,9 @@ describe('owned disposable PostgreSQL refresh and cleanup (TEST ONLY)', () => {
       expect(expired).toBe(true);
       await blocker.query('COMMIT');
       expect(await pending).toEqual({ kind: 'denied' });
-      expect(await flow.resolve()).toEqual({ kind: 'not_committed' });
+      if (operation === 'refresh') expect(await flow.resolve()).toEqual({ kind: 'not_committed' });
+      else expect((await db().query('SELECT delivery_state,delivery_acknowledged_at FROM jls_auth.app_sessions')).rows)
+        .toEqual([{ delivery_state: 'unacknowledged', delivery_acknowledged_at: null }]);
     } catch (error) { errors.push(error); }
     finally {
       try { await blocker.query('ROLLBACK'); } catch (error) { errors.push(error); }
@@ -94,7 +99,7 @@ describe('owned disposable PostgreSQL refresh and cleanup (TEST ONLY)', () => {
         catch (error) { if (!errors.includes(error)) errors.push(error); }
       }
       try { waiter.release(true); } catch (error) { errors.push(error); }
-      if (errors.length) throw new AggregateError(errors, 'Refresh expiry contention proof failed.');
+      if (errors.length) throw new AggregateError(errors, `${operation} expiry contention proof failed.`);
     }
   });
 

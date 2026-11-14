@@ -34,6 +34,7 @@ const signatures = {
   close: `jls_auth_refresh_close_v1(${commonSignature},uuid,text,text,uuid,uuid,text)`,
   cleanupClaim: 'jls_auth_session_cleanup_claim_v1(uuid,uuid)',
   cleanupComplete: 'jls_auth_session_cleanup_complete_v1(uuid,uuid,bigint,text)',
+  confirm: 'jls_auth_confirm_session_v1(text,text,bigint,bigint,uuid,uuid,uuid)',
   logout: 'jls_auth_logout_v1(text,text,uuid,text)',
   retire: 'jls_auth_delivery_retire_v1(text,uuid,uuid,bigint)',
 } as const;
@@ -41,13 +42,14 @@ const foundationSignatures = [
   'jls_auth_session_lookup_v1(text)',
   'jls_auth_session_snapshot_v1(text,text)',
   'jls_auth_current_credentials_v1(text,text,bigint,bigint,uuid)',
-  'jls_auth_confirm_session_v1(text,text,bigint,bigint,uuid,uuid,uuid)',
+  signatures.confirm,
   'jls_auth_delivery_ack_v1(text,text,bigint)',
   signatures.retire, signatures.logout,
 ];
 const sourceFiles = ['20261106155504_auth_control.sql', '20261107050258_auth_oauth_lifecycle.sql', '20261111153831_auth_refresh.sql'];
 const oauthLookupMigration = '20261113123612_auth_oauth_lookup.sql';
 const oauthRecoveryMigration = '20261113142204_auth_oauth_recovery.sql';
+const confirmMigration = '20261114120416_auth_confirm_managed_session.sql';
 export const oauthRecoverySignature = 'jls_auth_recover_login_v1(text,text,text,text,text)';
 export const oauthLookupSignatures = {
   browser: 'jls_auth_browser_resolve_v1(text)',
@@ -55,8 +57,9 @@ export const oauthLookupSignatures = {
   callback: 'jls_auth_callback_inspect_v1(text,text,text)',
 } as const;
 export const refreshSources = (oauth?: 'lookup' | 'recovery' | true) => {
-  const files = oauth ? [...sourceFiles, oauthLookupMigration] : sourceFiles;
+  const files = oauth ? [...sourceFiles, oauthLookupMigration] : [...sourceFiles];
   if (oauth === 'recovery') files.push(oauthRecoveryMigration);
+  files.push(confirmMigration);
   return Promise.all(files.map(file => readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8')));
 };
 
