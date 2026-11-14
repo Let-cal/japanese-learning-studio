@@ -297,3 +297,29 @@ describe('fixed OAuth lookup RPCs', () => {
     expect(await offline.resolveBrowser({ browserHash })).toEqual({ kind: 'unavailable', reason: 'transport' });
   });
 });
+
+
+describe('proof-bound OAuth recovery RPC', () => {
+  const input = { browserHash, flowHash: base.flowHash, proofHash, cookieFingerprint: 'absent', presentedSessionHash: null };
+  it('calls the fixed recovery capability with only the exact binding', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => json({ kind: 'recovered' }));
+    const repository = createOAuthActionRepository(config, fetcher);
+    expect(await repository.recoverLogin(input)).toEqual({ kind: 'recovered' });
+    expect(fetcher.mock.calls[0][0]).toBe(config.supabaseOrigin + '/rest/v1/rpc/jls_auth_recover_login_v1');
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      p_browser_hash: browserHash, p_flow_hash: base.flowHash, p_proof_hash: proofHash,
+      p_cookie_fingerprint: 'absent', p_presented_session_hash: null,
+    });
+  });
+  it('rejects inconsistent presentation before any write', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const repository = createOAuthActionRepository(config, fetcher);
+    expect(await repository.recoverLogin({ ...input, presentedSessionHash: commit.newSessionHash })).toEqual({ kind: 'invalid_input' });
+    expect(await repository.recoverLogin({ ...input, cookieFingerprint: 'invalid' })).toEqual({ kind: 'invalid_input' });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('reports an unreadable write result as unknown', async () => {
+    const repository = createOAuthActionRepository(config, async () => json({ kind: 'recovered', cookie: 'unexpected' }));
+    expect(await repository.recoverLogin(input)).toEqual({ kind: 'outcome_unknown', reason: 'invalid_response' });
+  });
+});
