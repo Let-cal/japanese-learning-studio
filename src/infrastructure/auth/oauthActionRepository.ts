@@ -53,6 +53,9 @@ const logoutInput = z.strictObject({ browserHash: hash, proofHash: hash, operati
 const browserLookup = z.strictObject({ browserHash: hash });
 const actionLookup = browserLookup.extend({ proofHash: hash, purpose: z.enum(['login', 'logout']), cookieFingerprint });
 const callbackLookup = browserLookup.extend({ flowHash: hash, presentedSessionHash: hash.nullable() });
+const recoveryInput = browserLookup.extend({ flowHash: hash, proofHash: hash, cookieFingerprint, presentedSessionHash: hash.nullable() })
+  .refine(input => input.cookieFingerprint !== 'absent' || input.presentedSessionHash === null);
+const recoveryResult = z.strictObject({ kind: z.enum(['recovered', 'in_progress', 'denied']) });
 const generation = integer.max(Number.MAX_SAFE_INTEGER - 1);
 
 const browserLookupResult = z.union([
@@ -105,6 +108,7 @@ type InvalidInput = { readonly kind: 'invalid_input' };
 type Result<T extends z.ZodType> = Promise<Readonly<z.infer<T>> | OAuthActionFault | InvalidInput>;
 
 export interface OAuthActionRepository {
+  recoverLogin(input: z.input<typeof recoveryInput>, signal?: AbortSignal): Result<typeof recoveryResult>;
   resolveBrowser(input: z.input<typeof browserLookup>, signal?: AbortSignal): Result<typeof browserLookupResult>;
   resolveAction(input: z.input<typeof actionLookup>, signal?: AbortSignal): Result<typeof actionLookupResult>;
   inspectCallback(input: z.input<typeof callbackLookup>, signal?: AbortSignal): Result<typeof callbackLookupResult>;
@@ -122,7 +126,7 @@ export interface OAuthActionRepository {
 
 type Rpc = 'issue_proof' | 'begin_login' | 'callback_claim' | 'callback_mark_sent' | 'callback_commit' | 'callback_resolve'
   | 'callback_close' | 'delivery_ack' | 'delivery_retire' | 'logout'
-  | 'browser_resolve' | 'action_resolve' | 'callback_inspect';
+  | 'browser_resolve' | 'action_resolve' | 'callback_inspect' | 'recover_login';
 
 const readOnlyRpcs: ReadonlySet<Rpc> = new Set(['browser_resolve', 'action_resolve', 'callback_inspect', 'callback_resolve']);
 
@@ -267,6 +271,10 @@ export function createOAuthActionRepository(configuration: unknown, fetcher: typ
   }
 
   const repository: OAuthActionRepository = {
+    recoverLogin: (input, signal) => call('recover_login', input, recoveryInput, recoveryResult, data => ({
+      p_browser_hash: data.browserHash, p_flow_hash: data.flowHash, p_proof_hash: data.proofHash,
+      p_cookie_fingerprint: data.cookieFingerprint, p_presented_session_hash: data.presentedSessionHash,
+    }), signal),
     resolveBrowser: (input, signal) => call('browser_resolve', input, browserLookup, browserLookupResult,
       data => ({ p_browser_hash: data.browserHash }), signal),
     resolveAction: (input, signal) => call('action_resolve', input, actionLookup, actionLookupResult, data => ({

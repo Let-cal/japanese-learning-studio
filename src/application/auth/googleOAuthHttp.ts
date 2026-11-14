@@ -4,11 +4,12 @@ import { createProblem, type ProblemCode } from '../../contracts/problems';
 import { fingerprintSessionCookie, hashAuthActionSecret } from '../../infrastructure/auth/authActionSecrets';
 import type { OAuthActionRepository } from '../../infrastructure/auth/oauthActionRepository';
 import { hashSessionSecret } from '../../infrastructure/auth/sessionSecrets';
+import { recoveryProofHash, sessionPresentation } from './googleOAuthRecoveryProof';
 import type { createGoogleOAuthBegin } from './googleOAuthBegin';
 import type { createGoogleOAuthCallback } from './googleOAuthCallback';
 import { createOAuthRequestBudget } from './oauthRequestBudget';
 
-interface Dependencies extends Pick<OAuthActionRepository, 'resolveAction' | 'inspectCallback'> {
+interface Dependencies extends Pick<OAuthActionRepository, 'resolveAction' | 'inspectCallback' | 'recoverLogin'> {
   readonly begin: ReturnType<typeof createGoogleOAuthBegin>;
   readonly finish: ReturnType<typeof createGoogleOAuthCallback>;
   readonly verifyCurrent: (input: { sessionId: string; sessionSecret: string; browserSecret: string },
@@ -86,6 +87,7 @@ function responseContext(callback: boolean) {
       headers.set('Content-Type', 'application/problem+json');
       return new Response(JSON.stringify(body), { status: body.status, headers });
     },
+    noContent() { return new Response(null, { status: 204, headers }); },
     methodNotAllowed(allow: 'GET' | 'POST') {
       headers.set('Allow', allow);
       return new Response(null, { status: 405, headers });
@@ -140,6 +142,46 @@ export function createGoogleOAuthHttp(appOrigin: string, deps: Dependencies) {
           return response.problem(result.kind === 'denied' ? 'forbidden' : 'temporarily_unavailable');
         }
         return response.redirect(result.location, cookie('__Host-jls-oauth', result.flowSecret, 600));
+      } catch { return response.problem('temporarily_unavailable'); }
+    },
+
+    async recover(request: Request): Promise<Response> {
+      const response = responseContext(false);
+      if (request.method !== 'POST') return response.methodNotAllowed('POST');
+      if (request.headers.get('Origin') !== appOrigin) return response.problem('forbidden');
+      try {
+        const budget = createOAuthRequestBudget(10_000, () => performance.now(), request.signal);
+        if (budget.expired()) return response.problem('temporarily_unavailable');
+        if (new URL(request.url).search) return response.problem('malformed_request');
+        const cookies = readCookies(request.headers.get('Cookie'));
+        if (!cookies) return response.problem('malformed_request');
+        const browserSecret = cookies.get('__Host-jls-browser');
+        const flowSecret = cookies.get('__Host-jls-oauth');
+        if (browserSecret === undefined || flowSecret === undefined) return response.problem('forbidden');
+        if (!BrowserBindingSecretSchema.safeParse(browserSecret).success || !OAuthAttemptSecretSchema.safeParse(flowSecret).success) {
+          return response.problem('malformed_request');
+        }
+        const form = await loginForm(request, budget.signal);
+        if (budget.expired()) return response.problem('temporarily_unavailable');
+        if (!form) return response.problem('malformed_request');
+        const parsedForm = parseAuthLoginForm(form);
+        if (!parsedForm.ok) return response.problem('malformed_request');
+
+        const flowHash = hashAuthActionSecret('oauth', flowSecret);
+        const input = {
+          browserHash: hashAuthActionSecret('browser', browserSecret), flowHash,
+          proofHash: recoveryProofHash(parsedForm.value.csrfToken, flowHash),
+          ...sessionPresentation(cookies.get('__Host-jls-session')),
+        };
+        if (budget.expired()) return response.problem('temporarily_unavailable');
+        let result = await deps.recoverLogin(input, budget.signal);
+        if (result.kind === 'outcome_unknown' && !budget.expired()) {
+          result = await deps.recoverLogin(input, budget.signal);
+          if (result.kind !== 'recovered') return response.problem('temporarily_unavailable');
+        }
+        if (budget.expired()) return response.problem('temporarily_unavailable');
+        if (result.kind === 'recovered') return response.noContent();
+        return response.problem(result.kind === 'denied' ? 'forbidden' : 'temporarily_unavailable');
       } catch { return response.problem('temporarily_unavailable'); }
     },
 

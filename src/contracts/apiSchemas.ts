@@ -44,7 +44,8 @@ interface OperationObject {
   'x-query-schema'?: Reference;
   'x-auth-purpose-authorizations'?: Record<string, string[]>;
   'x-max-body-bytes'?: number;
-  'x-auth-proof'?: { in: 'body'; name: 'csrfToken'; purpose: 'login'; authoritative: true };
+  'x-auth-proof'?: { in: 'body'; name: 'csrfToken'; purpose: 'login'; authoritative: true }
+    & ({ operation: 'recovery'; scope: 'oauth-attempt' } | { operation?: never; scope?: never });
 }
 interface ApiDocument {
   openapi: string; jsonSchemaDialect: string; info: { title: string; version: string; description: string };
@@ -101,13 +102,14 @@ export function buildOpenApiDocument(): ApiDocument {
     security: OperationObject['security'], errors: number[], description: string, body?: string, response?: string,
     successHeaders: Record<string, SchemaObject> = {}, bodyMediaType = 'application/json'): OperationObject {
     const callback = path === '/auth/callback';
+    const recovery = path === '/auth/recover';
     const headers: Record<string, SchemaObject> = {
       'Cache-Control': { description: 'Required on every Auth outcome.', schema: { type: 'string', const: 'private, no-store' } },
       'X-Request-Id': { description: 'Required correlation ID; never contains provider/query/cookie data.', schema: z.toJSONSchema(UuidSchema) },
-      'Set-Cookie': {
+      ...(!recovery ? { 'Set-Cookie': {
         description: 'Conditional issuance/expiration only after the corresponding verified state transition. Multiple Set-Cookie header fields, never comma-joined. Cookies: __Host-jls-session, __Host-jls-browser, __Host-jls-oauth; Secure; HttpOnly; SameSite=Lax; Path=/; no Domain. Session issuance only after confirmed commit; cookie secrets never appear in JSON.',
         schema: { type: 'string' },
-      },
+      } } : {}),
       ...(callback ? { 'Referrer-Policy': { description: 'Required on every callback outcome.', schema: { type: 'string', const: 'no-referrer' } } } : {}),
     };
     const responses: Record<string, ResponseObject> = {
@@ -135,6 +137,10 @@ export function buildOpenApiDocument(): ApiDocument {
     { Location: { description: 'The exact approved Supabase authorize URL selected from server-only configuration after adapter validation; never derived from a request URL or returned as a JSON provider URL. Exact environment URL must be approved before runtime activation.', schema: { type: 'string', format: 'uri', pattern: '^https://' } } }, 'application/x-www-form-urlencoded');
   login['x-max-body-bytes'] = 256;
   login['x-auth-proof'] = { in: 'body', name: 'csrfToken', purpose: 'login', authoritative: true };
+  const recovery = authOperation('/auth/recover', 'post', 'recoverAuthLogin', 204, [{ BrowserBinding: [], OAuthAttempt: [] }], [400, 403, 429, 503],
+    'Requires exact Origin and an attempt-specific recovery proof from a same-origin server-rendered form. The login-class proof hash and persisted issuance fingerprint bind the exact OAuth flow. The body uses the login form wire shape and rejects duplicate fields and query parameters. A confirmed locked recovery or exact receipt replay returns an empty 204 with no cookie writes. Work still in progress or unconfirmed returns 503. After 204 reload sign-in state and obtain a fresh login proof.', 'AuthLoginForm', undefined, {}, 'application/x-www-form-urlencoded');
+  recovery['x-max-body-bytes'] = 256;
+  recovery['x-auth-proof'] = { in: 'body', name: 'csrfToken', purpose: 'login', operation: 'recovery', scope: 'oauth-attempt', authoritative: true };
   const callback = authOperation('/auth/callback', 'get', 'completeAuthCallback', 303, [{ OAuthAttempt: [], BrowserBinding: [] }], [400, 403, 409, 429, 503],
     'Request body forbidden. Query is exactly code OR error with optional error_code/error_description, never mixed; reject unknown keys, duplicate decoded names and controls before object construction. Decode URLSearchParams once; never log/echo provider query or errors. Supabase owns provider-facing state; no application state parameter. Verify one-use attempt, binding, owner and upstream identity. Fixed post-callback target is /today. Provider denial maps to forbidden. Closed/uncertain exchange requires fresh login (409); unresolved commit is 503.', undefined, undefined,
     { Location: { description: 'Fixed canonical S02 destination after confirmed session commit or safe matching-cookie retry.', schema: { type: 'string', const: '/today' } } });
@@ -153,7 +159,7 @@ export function buildOpenApiDocument(): ApiDocument {
       'session-presets/previews/creation/plan/results', 'attempts/grading-retries/review-requests', 'explanations',
       'media/content/issue-reports', 'changes feed', 'preferences', 'provider-consents/decisions',
       'notification-devices/reminder-acknowledgements', 'exports/downloads', 'restore-previews/account-data replacement',
-    ].map(family => ({ family, status: 'planned', bodyContract: family === 'auth/session and logout' ? 'five Auth HTTP contracts specified; runtime not implemented' : 'not specified in this core slice' })),
+    ].map(family => ({ family, status: 'planned', bodyContract: family === 'auth/session and logout' ? 'six Auth HTTP contracts specified; runtime not implemented' : 'not specified in this core slice' })),
     'x-authorizationOrder': 'Domain operations only: verify owner session and active dataset epoch before receipt lookup; validate Origin/CSRF on mutations. Identical safe committed replay precedes stale ETag/domain-state checks. IDs never grant authority. Auth uses the separate operation-specific requirements.',
     paths,
     components: {

@@ -10,7 +10,7 @@
     {
       "family": "auth/session and logout",
       "status": "planned",
-      "bodyContract": "five Auth HTTP contracts specified; runtime not implemented"
+      "bodyContract": "six Auth HTTP contracts specified; runtime not implemented"
     },
     {
       "family": "curricula/volumes/lessons",
@@ -2429,6 +2429,181 @@
           "in": "body",
           "name": "csrfToken",
           "purpose": "login",
+          "authoritative": true
+        }
+      }
+    },
+    "/api/v1/auth/recover": {
+      "post": {
+        "operationId": "recoverAuthLogin",
+        "description": "Planned; not implemented. Requires exact Origin and an attempt-specific recovery proof from a same-origin server-rendered form. The login-class proof hash and persisted issuance fingerprint bind the exact OAuth flow. The body uses the login form wire shape and rejects duplicate fields and query parameters. A confirmed locked recovery or exact receipt replay returns an empty 204 with no cookie writes. Work still in progress or unconfirmed returns 503. After 204 reload sign-in state and obtain a fresh login proof. Unrelated browser headers/cookies are allowed; future raw-cookie parsing must reject duplicate relevant cookie names.",
+        "x-implementationStatus": "planned",
+        "security": [
+          {
+            "BrowserBinding": [],
+            "OAuthAttempt": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Origin"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Planned Auth success after server verification; runtime absent.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Required on every Auth outcome.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Required correlation ID; never contains provider/query/cookie data.",
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Sanitized Auth problem (400).",
+            "headers": {
+              "Cache-Control": {
+                "description": "Required on every Auth outcome.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Required correlation ID; never contains provider/query/cookie data.",
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProblem400"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Sanitized Auth problem (403).",
+            "headers": {
+              "Cache-Control": {
+                "description": "Required on every Auth outcome.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Required correlation ID; never contains provider/query/cookie data.",
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProblem403"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Sanitized Auth problem (429).",
+            "headers": {
+              "Cache-Control": {
+                "description": "Required on every Auth outcome.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Required correlation ID; never contains provider/query/cookie data.",
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              },
+              "Retry-After": {
+                "description": "Required bounded delay in seconds.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3600
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProblem429"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency or unresolved commit outcome; never claim absence, success or restart until resolved.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Required on every Auth outcome.",
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              },
+              "X-Request-Id": {
+                "description": "Required correlation ID; never contains provider/query/cookie data.",
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProblem503"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthLoginForm"
+              }
+            }
+          }
+        },
+        "x-max-body-bytes": 256,
+        "x-auth-proof": {
+          "in": "body",
+          "name": "csrfToken",
+          "purpose": "login",
+          "operation": "recovery",
+          "scope": "oauth-attempt",
           "authoritative": true
         }
       }

@@ -47,13 +47,16 @@ const foundationSignatures = [
 ];
 const sourceFiles = ['20261106155504_auth_control.sql', '20261107050258_auth_oauth_lifecycle.sql', '20261111153831_auth_refresh.sql'];
 const oauthLookupMigration = '20261113123612_auth_oauth_lookup.sql';
+const oauthRecoveryMigration = '20261113142204_auth_oauth_recovery.sql';
+export const oauthRecoverySignature = 'jls_auth_recover_login_v1(text,text,text,text,text)';
 export const oauthLookupSignatures = {
   browser: 'jls_auth_browser_resolve_v1(text)',
   action: 'jls_auth_action_resolve_v1(text,text,text,text)',
   callback: 'jls_auth_callback_inspect_v1(text,text,text)',
 } as const;
-export const refreshSources = (withOAuthLookup = false) => {
-  const files = withOAuthLookup ? [...sourceFiles, oauthLookupMigration] : sourceFiles;
+export const refreshSources = (oauth?: 'lookup' | 'recovery' | true) => {
+  const files = oauth ? [...sourceFiles, oauthLookupMigration] : sourceFiles;
+  if (oauth === 'recovery') files.push(oauthRecoveryMigration);
   return Promise.all(files.map(file => readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), 'utf8')));
 };
 
@@ -102,7 +105,7 @@ async function transaction<T>(db: Queryable, run: () => Promise<T>): Promise<T> 
   }
 }
 
-export async function initializeRefreshFixture(pool: Pool, withOAuthLookup = false) {
+export async function initializeRefreshFixture(pool: Pool, oauth?: 'lookup' | 'recovery' | true) {
   const db = await pool.connect();
   try {
     await assertServerIdentity(adapt(db));
@@ -112,7 +115,7 @@ export async function initializeRefreshFixture(pool: Pool, withOAuthLookup = fal
       (SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public') AS functions,
       (SELECT count(*)::int FROM pg_roles WHERE rolname IN ('anon','authenticated','service_role','supabase_auth_admin','jls_refresh_rls_probe')) AS roles`);
     assert.deepEqual(rows, [{ schemas: 0, objects: 0, functions: 0, roles: 0 }], 'Refresh fixture requires a fresh disposable database.');
-    const sources = await refreshSources(withOAuthLookup);
+    const sources = await refreshSources(oauth);
     await transaction(db, async () => {
       await db.query(refreshFixtureSetup);
       for (const sql of sources) {
@@ -124,15 +127,16 @@ export async function initializeRefreshFixture(pool: Pool, withOAuthLookup = fal
   } finally { db.release(true); }
 }
 
-export async function cleanupRefreshFixture(pool: Pool, withOAuthLookup = false) {
+export async function cleanupRefreshFixture(pool: Pool, oauth?: 'lookup' | 'recovery' | true) {
   const db = await pool.connect();
   try {
     await assertServerIdentity(adapt(db));
     await assertRefreshSentinel(db);
     await transaction(db, async () => {
       const newSignatures = Object.values(signatures).filter(signature => !foundationSignatures.includes(signature));
-      const lookupSignatures = withOAuthLookup ? Object.values(oauthLookupSignatures) : [];
-      for (const signature of [...lookupSignatures, ...newSignatures, ...oauthSignatures, ...foundationSignatures]) {
+      const lookupSignatures = oauth ? Object.values(oauthLookupSignatures) : [];
+      const recoverySignatures = oauth === 'recovery' ? [oauthRecoverySignature] : [];
+      for (const signature of [...recoverySignatures, ...lookupSignatures, ...newSignatures, ...oauthSignatures, ...foundationSignatures]) {
         await db.query(`DROP FUNCTION public.${signature}`);
       }
       // The sentinel and role checks above establish ownership of these exact schemas.
@@ -154,9 +158,11 @@ export async function resetRefreshFixture(database: Queryable | Pool, withSessio
     await assertRefreshSentinel(db);
     const f = REFRESH;
     await transaction(db, async () => {
-      const schema = (await db.query("SELECT to_regclass('jls_auth.refresh_attempts') AS refresh")).rows[0];
+      const schema = (await db.query(`SELECT to_regclass('jls_auth.refresh_attempts') AS refresh,
+        to_regclass('jls_auth.oauth_recovery_receipts') AS recovery`)).rows[0];
       const historyTables = schema?.refresh ? 'jls_auth.refresh_receipts, jls_auth.refresh_attempts,' : '';
-      await db.query(`TRUNCATE ${historyTables} auth.sessions, jls_auth.candidate_cleanup_work, jls_auth.proof_issuances,
+      const recoveryTables = schema?.recovery ? 'jls_auth.oauth_recovery_receipts, jls_auth.oauth_exchange_expirations,' : '';
+      await db.query(`TRUNCATE ${historyTables} ${recoveryTables} auth.sessions, jls_auth.candidate_cleanup_work, jls_auth.proof_issuances,
         jls_auth.cleanup_work, jls_auth.action_receipts, jls_auth.csrf_proofs, jls_auth.oauth_attempts, jls_auth.session_credentials,
         jls_auth.app_sessions, jls_auth.browser_bindings, jls_auth.datasets, jls_auth.owner_control`);
       await db.query('INSERT INTO jls_auth.owner_control(owner_id,auth_subject) VALUES ($1,$2)', [f.owner, f.subject]);

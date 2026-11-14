@@ -18,9 +18,10 @@ function setup() {
   const inspectCallback = vi.fn().mockResolvedValue({ kind: 'pending', browserId, attemptId });
   const begin = vi.fn().mockResolvedValue({ kind: 'redirect', location, flowSecret: flow });
   const finish = vi.fn().mockResolvedValue({ kind: 'signed_in', sessionSecret: session });
+  const recoverLogin = vi.fn().mockResolvedValue({ kind: 'recovered' });
   const verifyCurrent = vi.fn().mockResolvedValue({ kind: 'authorized' });
-  const handlers = createGoogleOAuthHttp(origin, { resolveAction, inspectCallback, begin, finish, verifyCurrent });
-  return { handlers, resolveAction, inspectCallback, begin, finish, verifyCurrent };
+  const handlers = createGoogleOAuthHttp(origin, { resolveAction, inspectCallback, begin, finish, verifyCurrent, recoverLogin });
+  return { handlers, resolveAction, inspectCallback, begin, finish, verifyCurrent, recoverLogin };
 }
 
 function login(body = `csrfToken=${proof}`, cookie = loginCookie, requestOrigin = origin) {
@@ -160,4 +161,59 @@ describe('Google OAuth HTTP handlers', () => {
     expect(body.locked).toBe(false);
     expect(resolveAction).not.toHaveBeenCalled();
   });
+});
+
+
+describe('Google OAuth recovery', () => {
+  it('confirms only the exact proof-bound operation and leaves browser cookies untouched', async () => {
+    const { handlers, recoverLogin, resolveAction } = setup();
+    recoverLogin.mockResolvedValueOnce({ kind: 'outcome_unknown', reason: 'transport' });
+    const response = await handlers.recover(login(undefined, callbackCookie));
+    expect(response.status).toBe(204);
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(await response.text()).toBe('');
+    expect(recoverLogin).toHaveBeenCalledTimes(2);
+    expect(recoverLogin.mock.calls[0]).toEqual(recoverLogin.mock.calls[1]);
+    expect(recoverLogin.mock.calls[0][0]).toMatchObject({ cookieFingerprint: 'absent', presentedSessionHash: null });
+    expect(resolveAction).not.toHaveBeenCalled();
+  });
+
+  it('does not mutate for a cross-origin request, missing flow, HEAD, or query input', async () => {
+    const { handlers, recoverLogin } = setup();
+    expect((await handlers.recover(login(undefined, callbackCookie, 'https://other.example.test'))).status).toBe(403);
+    expect((await handlers.recover(login())).status).toBe(403);
+    const head = new Request(origin + '/api/v1/auth/recover', { method: 'HEAD', headers: { Cookie: callbackCookie } });
+    expect((await handlers.recover(head)).status).toBe(405);
+    const withQuery = new Request(origin + '/api/v1/auth/recover?attempt=anything', {
+      method: 'POST', headers: { Origin: origin, Cookie: callbackCookie, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `csrfToken=${proof}`,
+    });
+    expect((await handlers.recover(withQuery)).status).toBe(400);
+    expect(recoverLogin).not.toHaveBeenCalled();
+  });
+
+  it('does not replay an uncertain write or emit a cookie after request cancellation', async () => {
+    const { handlers, recoverLogin } = setup();
+    const controller = new AbortController();
+    recoverLogin.mockImplementationOnce(async () => {
+      controller.abort();
+      return { kind: 'outcome_unknown', reason: 'cancelled' };
+    });
+    const request = new Request(login(undefined, callbackCookie), { signal: controller.signal });
+    const response = await handlers.recover(request);
+    expect(response.status).toBe(503);
+    expect(response.headers.getSetCookie()).toEqual([]);
+    expect(recoverLogin).toHaveBeenCalledOnce();
+  });
+
+  it.each([['denied', 403], ['in_progress', 503], ['outcome_unknown', 503]])(
+    'keeps recovery cookies unchanged when SQL returns %s', async (kind, status) => {
+      const { handlers, recoverLogin } = setup();
+      recoverLogin.mockResolvedValue({ kind });
+      const response = await handlers.recover(login(undefined, callbackCookie));
+      expect(response.status).toBe(status);
+      expect(response.headers.getSetCookie()).toEqual([]);
+    },
+  );
 });

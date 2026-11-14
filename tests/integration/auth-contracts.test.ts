@@ -11,7 +11,7 @@ const id = '11111111-1111-4111-8111-111111111111';
 const rawSecret = 'A'.repeat(43);
 const token = `jls-csrf-v1.${rawSecret}`;
 
-it('publishes the five planned Auth operations without domain prerequisites', () => {
+it('publishes the six planned Auth operations without domain prerequisites', () => {
   const document = buildOpenApiDocument();
   expect(document.paths['/api/v1/auth/csrf']?.post).toBeDefined();
   expect(document.paths['/api/v1/auth/login']?.post).toBeDefined();
@@ -20,7 +20,7 @@ it('publishes the five planned Auth operations without domain prerequisites', ()
   expect(document.paths['/api/v1/me']?.get).toBeDefined();
   expect(Object.entries(document.paths).filter(([path]) => path.startsWith('/api/v1/auth/') || path === '/api/v1/me')
     .flatMap(([path, operations]) => Object.keys(operations).map(method => `${method} ${path}`)).sort()).toEqual([
-    'get /api/v1/auth/callback', 'get /api/v1/me', 'post /api/v1/auth/csrf', 'post /api/v1/auth/login', 'post /api/v1/auth/logout',
+    'get /api/v1/auth/callback', 'get /api/v1/me', 'post /api/v1/auth/csrf', 'post /api/v1/auth/login', 'post /api/v1/auth/logout', 'post /api/v1/auth/recover',
   ]);
 });
 
@@ -175,4 +175,24 @@ it('parses an exclusive bounded callback query once and rejects duplicates befor
   }
   for (const value of [{ code: 'a'.repeat(2048) }, { error: 'a'.repeat(128), error_code: 'b'.repeat(128), error_description: 'c'.repeat(2048) }]) expect(AuthCallbackQuerySchema.safeParse(value).success).toBe(true);
   expect(AuthCallbackQuerySchema.safeParse({ code: 'a', ownerId: id }).success).toBe(false);
+});
+
+
+it('declares the exact flow-bound recovery proof, empty acknowledgement and no cookie writes', () => {
+  const operation = buildOpenApiDocument().paths['/api/v1/auth/recover'].post;
+  expect(operation['x-implementationStatus']).toBe('planned');
+  expect(operation.security).toEqual([{ BrowserBinding: [], OAuthAttempt: [] }]);
+  expect(operation.parameters).toEqual([{ $ref: '#/components/parameters/Origin' }]);
+  expect(operation.requestBody?.content['application/x-www-form-urlencoded'].schema.$ref).toBe('#/components/schemas/AuthLoginForm');
+  expect(operation['x-max-body-bytes']).toBe(256);
+  expect(operation['x-auth-proof']).toEqual({
+    in: 'body', name: 'csrfToken', purpose: 'login', operation: 'recovery', scope: 'oauth-attempt', authoritative: true,
+  });
+  expect(Object.keys(operation.responses).sort()).toEqual(['204', '400', '403', '429', '503']);
+  expect(operation.responses[204].content).toBeUndefined();
+  for (const outcome of Object.values(operation.responses)) {
+    expect(outcome.headers?.['Cache-Control']).toBeDefined();
+    expect(outcome.headers?.['X-Request-Id']).toBeDefined();
+    expect(outcome.headers?.['Set-Cookie']).toBeUndefined();
+  }
 });
